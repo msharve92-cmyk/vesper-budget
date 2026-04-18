@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Vesper"/>
+<meta name="theme-color" content="#0f0d0e"/>
+<meta name="description" content="Personal envelope budgeting app"/>
+<link rel="manifest" href="vesper.webmanifest"/>
+<title>Vesper Budget</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0f0d0e;--bg2:#181416;--bg3:#211c1e;--bg4:#2a2325;
+  --rose:#c9967a;--rose-light:#e8bfaa;--rose-dim:#8c5e48;
+  --nude:#a08272;--nude-light:#c4a898;
+  --cream:#f0e4d8;--text:#f0e4d8;--text2:#b8a498;--text3:#7a6860;
+  --success:#7fa887;--warning:#c4a04a;--danger:#c47070;--info:#7a9fc4;
+  --border:rgba(201,150,122,0.12);--border2:rgba(201,150,122,0.22);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:11px 18px;padding-top:calc(11px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{font-family:'DM Serif Display',serif;font-size:19px;color:var(--rose-light);}
+.logo span{color:var(--text3);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:300;margin-left:6px;}
+.nav-tabs{display:flex;gap:3px;background:var(--bg3);border-radius:10px;padding:3px;}
+.nav-tab{padding:6px 13px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--text3);font-weight:500;border:none;background:transparent;transition:all .2s;font-family:'DM Sans',sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.nav-tab.active{background:var(--bg4);color:var(--rose-light);border:1px solid var(--border2);}
+.hdr-right{text-align:right;}
+.hdr-right .val{font-size:16px;font-weight:600;color:var(--rose-light);}
+.hdr-right .lbl{font-size:10px;color:var(--text3);}
+.main{padding:16px 18px;padding-bottom:calc(40px + env(safe-area-inset-bottom));max-width:860px;margin:0 auto;width:100%;}
+.tab-content{display:none;}.tab-content.active{display:block;}
+
+.payday-banner{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.pay-slot{flex:1;min-width:115px;background:var(--bg3);border-radius:9px;padding:9px 12px;border:1px solid var(--border);}
+.pay-slot.next{border-color:var(--rose-dim);}
+.ps-label{font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);margin-bottom:3px;}
+.ps-date{font-size:13px;font-weight:600;color:var(--cream);}
+.pay-slot.next .ps-date{color:var(--rose-light);}
+.ps-days{font-size:10px;color:var(--nude-light);margin-top:2px;}
+
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+.sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 13px;}
+.sum-card .lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px;}
+.sum-card .val{font-size:18px;font-weight:600;color:var(--cream);}
+.sum-card .val.rose{color:var(--rose);}
+.sum-card .val.info{color:var(--info);}
+.sum-card .sub{font-size:9px;color:var(--text3);margin-top:2px;}
+
+.savings-pool-row{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.spr-val{font-size:16px;font-weight:600;color:var(--info);}
+.spr-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.spr-right{display:flex;gap:6px;align-items:center;}
+
+.btn{border:1px solid var(--border2);background:var(--bg3);color:var(--rose-light);padding:6px 13px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.btn:hover{background:var(--bg4);border-color:var(--rose-dim);}
+.btn-primary{background:var(--bg4);border-color:var(--rose);color:var(--rose-light);}
+.btn-primary:hover{background:var(--rose-dim);color:var(--cream);}
+.btn-info{background:rgba(122,159,196,.1);border-color:rgba(122,159,196,.3);color:var(--info);}
+.btn-info:hover{background:rgba(122,159,196,.2);}
+.btn-danger{border-color:rgba(196,112,112,.3);color:var(--danger);background:rgba(196,112,112,.08);}
+.btn-sm{padding:3px 9px;font-size:11px;}
+
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;margin-top:17px;}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--nude);font-weight:600;}
+.funded-count{font-size:10px;color:var(--text3);}
+.envelope-grid{display:flex;flex-direction:column;gap:7px;}
+
+.envelope-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;transition:border-color .2s;}
+.envelope-card.expanded{border-color:var(--rose-dim);}
+.env-header{display:flex;align-items:center;gap:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.env-icon{width:33px;height:33px;border-radius:8px;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.env-info{flex:1;min-width:0;}
+.env-name{font-weight:500;font-size:13px;color:var(--cream);}
+.env-meta{font-size:10px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.env-right{text-align:right;flex-shrink:0;}
+.env-balance{font-size:16px;font-weight:600;}
+.env-of{font-size:10px;color:var(--text3);}
+.status-badge{display:inline-flex;align-items:center;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:3px;}
+.badge-funded{background:rgba(127,168,135,.15);color:var(--success);border:1px solid rgba(127,168,135,.25);}
+.badge-ontrack{background:rgba(196,160,74,.15);color:var(--warning);border:1px solid rgba(196,160,74,.25);}
+.badge-behind{background:rgba(196,112,112,.15);color:var(--danger);border:1px solid rgba(196,112,112,.25);}
+.progress-bar{height:3px;background:var(--bg4);border-radius:2px;margin-top:9px;overflow:hidden;}
+.progress-fill{height:100%;border-radius:2px;transition:width .4s;}
+.env-expanded{margin-top:11px;padding-top:11px;border-top:1px solid var(--border);display:none;}
+.env-expanded.show{display:block;}
+.detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px;}
+.dl{font-size:9px;text-transform:uppercase;letter-spacing:.6px;color:var(--text3);margin-bottom:2px;}
+.dv{font-size:12px;font-weight:500;color:var(--cream);}
+.tx-list{display:flex;flex-direction:column;gap:5px;margin-bottom:9px;}
+.tx-row{display:flex;align-items:center;justify-content:space-between;padding:7px 9px;background:var(--bg3);border-radius:7px;}
+.tx-name{font-size:12px;color:var(--text);}
+.tx-date{font-size:10px;color:var(--text3);}
+.tx-amount{font-size:12px;font-weight:500;color:var(--danger);}
+.tx-amount.pos{color:var(--success);}
+.action-row{display:flex;gap:6px;flex-wrap:wrap;}
+
+.due-chip{font-size:9px;color:var(--nude-light);background:var(--bg4);padding:2px 6px;border-radius:4px;border:1px solid var(--border);}
+.due-chip.urgent{color:var(--danger);border-color:rgba(196,112,112,.3);background:rgba(196,112,112,.08);}
+.cover-chip{font-size:9px;padding:2px 6px;border-radius:4px;border:1px solid;}
+.cover-ok{color:var(--success);border-color:rgba(127,168,135,.3);background:rgba(127,168,135,.08);}
+.cover-warn{color:var(--danger);border-color:rgba(196,112,112,.3);background:rgba(196,112,112,.08);}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:flex-end;justify-content:center;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px 16px 0 0;padding:22px 18px 32px;width:100%;max-width:480px;animation:slideUp .22s ease;}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-title{font-family:'DM Serif Display',serif;font-size:19px;color:var(--rose-light);margin-bottom:16px;}
+.form-group{margin-bottom:12px;}
+.form-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:5px;display:block;}
+.form-input,.form-select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 11px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;appearance:none;}
+.form-input:focus,.form-select:focus{border-color:var(--rose-dim);}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.emoji-picker{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;}
+.emoji-opt{width:33px;height:33px;border-radius:7px;background:var(--bg3);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:all .15s;}
+.emoji-opt.selected{border-color:var(--rose);background:var(--bg4);}
+.modal-actions{display:flex;gap:7px;margin-top:17px;}
+.sib{background:var(--bg3);border-radius:9px;padding:11px 13px;margin-bottom:12px;}
+.si-label{font-size:9px;color:var(--text3);margin-bottom:2px;}
+.si-val{font-size:20px;font-weight:600;color:var(--cream);}
+.si-val.warn{color:var(--danger);}
+.rec-box{background:var(--bg3);border:1px solid rgba(201,150,122,.18);border-left:3px solid var(--rose-dim);border-radius:8px;padding:9px 11px;margin-top:9px;font-size:12px;color:var(--text2);display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.rec-amount{font-weight:600;color:var(--rose-light);font-size:13px;}
+.warning-toast{background:rgba(196,112,112,.1);border:1px solid rgba(196,112,112,.25);border-radius:8px;padding:8px 11px;font-size:11px;color:var(--danger);margin-bottom:11px;}
+.savings-note{font-size:10px;color:var(--info);background:rgba(122,159,196,.08);border:1px solid rgba(122,159,196,.16);border-radius:8px;padding:7px 11px;margin-bottom:9px;}
+
+.income-panel{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:14px 15px;margin-bottom:13px;}
+.income-panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--nude);font-weight:600;margin-bottom:10px;}
+.quick-btn{border:1px solid var(--border2);background:var(--bg3);color:var(--rose-light);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .2s;white-space:nowrap;}
+.quick-btn:hover{background:var(--bg4);}
+.income-log-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.income-log-row:last-child{border-bottom:none;}
+.il-name{font-size:12px;color:var(--text);}
+.il-date{font-size:10px;color:var(--text3);}
+.il-amt{font-size:13px;font-weight:600;color:var(--success);}
+.il-type{font-size:9px;padding:2px 5px;border-radius:4px;font-weight:600;text-transform:uppercase;letter-spacing:.3px;margin-left:5px;}
+.il-type.biweekly{background:rgba(201,150,122,.12);color:var(--rose-light);}
+.il-type.retainer{background:rgba(122,159,196,.12);color:var(--info);}
+.il-type.other{background:rgba(127,168,135,.12);color:var(--success);}
+
+.insight-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:9px;}
+.insight-title{font-size:13px;font-weight:600;color:var(--cream);margin-bottom:4px;}
+.insight-body{font-size:12px;color:var(--text2);line-height:1.6;}
+.trend-bar-row{display:flex;align-items:center;gap:9px;margin-top:7px;}
+.trend-label{font-size:10px;color:var(--text2);width:100px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trend-bar-bg{flex:1;height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;}
+.trend-bar-fill{height:100%;border-radius:3px;}
+.trend-val{font-size:10px;color:var(--text2);width:58px;text-align:right;flex-shrink:0;}
+.period-toggle{display:flex;gap:3px;background:var(--bg3);border-radius:8px;padding:3px;}
+.period-btn{padding:4px 9px;border-radius:6px;font-size:11px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text3);font-family:'DM Sans',sans-serif;transition:all .15s;}
+.period-btn.active{background:var(--bg4);color:var(--rose-light);border:1px solid var(--border2);}
+.finput{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;}
+.finput:focus{border-color:var(--rose-dim);}
+
+.txlog-filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+.txlog-filter-btn{border:1px solid var(--border);background:var(--bg3);color:var(--text3);padding:5px 10px;border-radius:7px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .15s;white-space:nowrap;}
+.txlog-filter-btn.active{background:var(--bg4);color:var(--rose-light);border-color:var(--border2);}
+.txlog-search{flex:1;min-width:140px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:12px;outline:none;}
+.txlog-search:focus{border-color:var(--rose-dim);}
+.txlog-group{margin-bottom:16px;}
+.txlog-group-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--nude);font-weight:600;margin-bottom:7px;}
+.txlog-row{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;margin-bottom:5px;}
+.txlog-icon{width:30px;height:30px;border-radius:7px;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.txlog-info{flex:1;min-width:0;}
+.txlog-desc{font-size:13px;color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.txlog-env{font-size:10px;color:var(--text3);margin-top:1px;}
+.txlog-right{text-align:right;flex-shrink:0;}
+.txlog-amt{font-size:14px;font-weight:600;color:var(--danger);}
+.txlog-amt.pos{color:var(--success);}
+.txlog-date{font-size:10px;color:var(--text3);margin-top:1px;}
+.txlog-actions{display:flex;gap:4px;flex-shrink:0;}
+.txlog-empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px;}
+
+.install-banner{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border2);padding:14px 18px;padding-bottom:calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:400;animation:slideUp .3s ease;}
+.install-banner-text{font-size:12px;color:var(--text2);line-height:1.5;}
+.install-banner-text strong{display:block;font-size:13px;color:var(--cream);margin-bottom:2px;}
+.install-banner-actions{display:flex;gap:7px;flex-shrink:0;}
+.save-indicator{position:fixed;bottom:16px;right:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--success);opacity:0;transition:opacity .4s;z-index:300;}
+.save-indicator.show{opacity:1;}
+
+@media(max-width:600px){
+  .summary-row{grid-template-columns:repeat(2,1fr);}
+  .detail-grid{grid-template-columns:repeat(2,1fr);}
+  .payday-banner{gap:6px;}
+  .pay-slot{min-width:100px;}
+  .topbar{flex-wrap:wrap;gap:8px;}
+  .nav-tabs{order:3;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="topbar">
+    <div class="logo">vesper <span>budget</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+      <button class="nav-tab" onclick="showTab('income',this)">Income</button>
+      <button class="nav-tab" onclick="showTab('transactions',this)">Transactions</button>
+      <button class="nav-tab" onclick="showTab('insights',this)">Insights</button>
+    </div>
+    <div class="hdr-right">
+      <div class="val" id="hdr-u">$0.00</div>
+      <div class="lbl">unallocated</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="tab-content active" id="tab-dashboard">
+      <div id="payday-banner"></div>
+      <div class="summary-row">
+        <div class="sum-card"><div class="lbl">Unallocated</div><div class="val rose" id="sc-u">$0.00</div><div class="sub">ready to assign</div></div>
+        <div class="sum-card"><div class="lbl">Fixed Bills</div><div class="val" id="sc-b">$0.00</div><div class="sub">total monthly</div></div>
+        <div class="sum-card"><div class="lbl">Variable Spent</div><div class="val rose" id="sc-s">$0.00</div><div class="sub">this month</div></div>
+        <div class="sum-card"><div class="lbl">Savings Pool</div><div class="val info" id="sc-sp">$0.00</div><div class="sub">separate from budget</div></div>
+      </div>
+      <div class="savings-pool-row">
+        <div><div class="spr-val" id="pool-val">$0.00</div><div class="spr-sub">Savings Pool — not part of your spending budget</div></div>
+        <div class="spr-right">
+          <input class="finput" id="sav-add-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Add to savings ($)" style="width:155px;"/>
+          <button class="btn btn-info btn-sm" onclick="addToPool()">+ Add</button>
+        </div>
+      </div>
+      <div id="sections-container"></div>
+      <div style="margin-top:16px;display:flex;justify-content:center;gap:10px;padding-bottom:40px;">
+        <button class="btn" onclick="openAddModal()">+ New Envelope</button>
+        <button class="btn" onclick="openPaySettingsModal()">⚙ Settings</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-income">
+      <div id="income-panel-full"></div>
+    </div>
+
+    <div class="tab-content" id="tab-transactions">
+      <div id="transactions-panel"></div>
+    </div>
+
+    <div class="tab-content" id="tab-insights">
+      <div class="section-header" style="margin-top:0;">
+        <div class="section-title">Spending Trends</div>
+        <div class="period-toggle">
+          <button class="period-btn active" onclick="setPeriod(30,this)">30d</button>
+          <button class="period-btn" onclick="setPeriod(60,this)">60d</button>
+          <button class="period-btn" onclick="setPeriod(90,this)">90d</button>
+        </div>
+      </div>
+      <div id="insights-content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-backdrop" class="modal-backdrop" style="display:none;" onclick="closeMB(event)">
+  <div class="modal" onclick="event.stopPropagation()"><div id="modal-inner"></div></div>
+</div>
+
+<div class="save-indicator" id="save-indicator">Saved</div>
+
+<div id="install-banner" style="display:none;" class="install-banner">
+  <div class="install-banner-text">
+    <strong>Add Vesper to your home screen</strong>
+    Use it like an app — works offline too.
+  </div>
+  <div class="install-banner-actions">
+    <button class="btn btn-sm" onclick="dismissInstall()" style="color:var(--text3);">Not now</button>
+    <button class="btn btn-primary btn-sm" onclick="doInstall()">Install</button>
+  </div>
+</div>
+
+<script>
+const EMOJIS=['🏠','💡','📱','🚗','💳','🌐','📦','🎵','☁️','🤖','💰','✈️','🛒','🍔','👗','💊','🎓','🐾','🎮','☕','⛽','💧','🔔','🏥','🐕','🎨','🏋️','📚'];
+
+function getAnchor(){
+  const d=S&&S.paySchedule?S.paySchedule.anchorDate:'2026-04-17';
+  const p=d.split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+}
+function getRetainerDays(){
+  return S&&S.paySchedule?S.paySchedule.retainerDays:[1,20];
+}
+function getBiweeklyEnabled(){
+  return S&&S.paySchedule?S.paySchedule.biweeklyEnabled:true;
+}
+function getRetainerEnabled(){
+  return S&&S.paySchedule?S.paySchedule.retainerEnabled:true;
+}
+
+function today(){return new Date();}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function fmtShort(d){return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});}
+function fmtFull(d){return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtIso(d){return d.toISOString().split('T')[0];}
+function daysUntil(d){const t=today();t.setHours(0,0,0,0);return Math.ceil((d-t)/86400000);}
+function fmt(n,d=2){return(n<0?'-':'')+'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});}
+
+function getPaydays(count){
+  const t=today();t.setHours(0,0,0,0);
+  const days=[];
+  if(getBiweeklyEnabled()){
+    const ANCHOR=getAnchor();
+    const diffMs=t-ANCHOR;
+    const diffDays=Math.ceil(diffMs/86400000);
+    const cyclePos=((diffDays%14)+14)%14;
+    let bw=addDays(t,cyclePos===0?0:14-cyclePos);
+    if(bw<=t)bw=addDays(bw,14);
+    for(let i=0;i<10;i++){days.push({date:new Date(bw),type:'biweekly',label:'Paycheck'});bw=addDays(bw,14);}
+  }
+  if(getRetainerEnabled()){
+    const rdays=getRetainerDays();
+    for(let m=0;m<4;m++){
+      const mo=t.getMonth()+m;
+      const yr=t.getFullYear()+Math.floor(mo/12);
+      rdays.forEach(day=>{
+        const d=new Date(yr,mo%12,day);
+        d.setHours(0,0,0,0);
+        if(d>t)days.push({date:d,type:'retainer',label:'Retainer'});
+      });
+    }
+  }
+  days.sort((a,b)=>a.date-b.date);
+  return count?days.slice(0,count):days;
+}
+
+function getDaysLeft(dueDay){
+  const t=today();t.setHours(0,0,0,0);
+  const due=new Date(t.getFullYear(),t.getMonth(),dueDay);
+  due.setHours(0,0,0,0);
+  if(due<=t)due.setMonth(due.getMonth()+1);
+  return Math.ceil((due-t)/86400000);
+}
+
+function getNextPayBeforeDue(dueDay){
+  const t=today();t.setHours(0,0,0,0);
+  const due=new Date(t.getFullYear(),t.getMonth(),dueDay);
+  due.setHours(0,0,0,0);
+  if(due<=t)due.setMonth(due.getMonth()+1);
+  const pays=getPaydays().filter(p=>p.date<due);
+  return pays.length?pays[pays.length-1]:null;
+}
+
+// --- DEFAULT STATE ---
+const DEFAULT_STATE = {
+  unallocated:0, savingsPool:0, period:30, expandedId:null, nextId:20, modal:null,
+  incomeLog:[],
+  paySchedule:{
+    biweeklyEnabled:true,
+    anchorDate:'2026-04-17',
+    retainerEnabled:true,
+    retainerDays:[1,20]
+  },
+  envelopes:[
+    {id:1, name:'Rent',         icon:'🏠',type:'fixed',  target:235,   balance:0,dueDay:1,  transactions:[],history:[235,235,235]},
+    {id:10,name:'iCloud',       icon:'☁️', type:'fixed',  target:9.99,  balance:0,dueDay:3,  transactions:[],history:[9.99,9.99,9.99]},
+    {id:5, name:'Credit Card',  icon:'💳',type:'fixed',  target:80,    balance:0,dueDay:5,  transactions:[],history:[80,80,80]},
+    {id:2, name:'Electric',     icon:'💡',type:'fixed',  target:145,   balance:0,dueDay:6,  transactions:[],history:[130,155,145]},
+    {id:11,name:'Spotify',      icon:'🎵',type:'fixed',  target:7.57,  balance:0,dueDay:7,  transactions:[],history:[7.57,7.57,7.57]},
+    {id:12,name:'Claude',       icon:'🤖',type:'fixed',  target:21.65, balance:0,dueDay:9,  transactions:[],history:[21.65,21.65,21.65]},
+    {id:7, name:'Water & Trash',icon:'💧',type:'fixed',  target:90,    balance:0,dueDay:13, transactions:[],history:[90,90,90]},
+    {id:3, name:'Phone',        icon:'📱',type:'fixed',  target:105,   balance:0,dueDay:14, transactions:[],history:[105,105,105]},
+    {id:9, name:'Ring',         icon:'🔔',type:'fixed',  target:10.81, balance:0,dueDay:17, transactions:[],history:[10.81,10.81,10.81]},
+    {id:8, name:'Amazon Prime', icon:'📦',type:'fixed',  target:7.57,  balance:0,dueDay:21, transactions:[],history:[7.57,7.57,7.57]},
+    {id:4, name:'Gas (Bill)',   icon:'⛽',type:'fixed',  target:105,   balance:0,dueDay:30, transactions:[],history:[100,110,105]},
+    {id:6, name:'Internet',     icon:'🌐',type:'fixed',  target:28,    balance:0,dueDay:30, transactions:[],history:[28,28,28]},
+    {id:13,name:'Groceries',    icon:'🛒',type:'variable',target:400,  balance:0,dueDay:null,transactions:[],history:[380,415,395]},
+    {id:14,name:'Gas (Fuel)',   icon:'🚗',type:'variable',target:150,  balance:0,dueDay:null,transactions:[],history:[130,145,160]},
+    {id:15,name:'Personal',     icon:'👗',type:'variable',target:100,  balance:0,dueDay:null,transactions:[],history:[80,120,100]},
+  ],
+  savings:[
+    {id:16,name:'Emergency Fund',icon:'💰',target:5000,balance:0,transactions:[]},
+    {id:17,name:'Vacation',      icon:'✈️', target:2500,balance:0,transactions:[]},
+  ],
+};
+
+// --- PERSISTENCE ---
+const STORAGE_KEY = 'vesper_budget_v1';
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(!raw)return JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const saved=JSON.parse(raw);
+    // merge — keep defaults for modal/expandedId
+    saved.modal=null;saved.expandedId=null;
+    return saved;
+  }catch(e){return JSON.parse(JSON.stringify(DEFAULT_STATE));}
+}
+let saveTimeout=null;
+function saveState(){
+  clearTimeout(saveTimeout);
+  saveTimeout=setTimeout(()=>{
+    try{
+      const toSave=Object.assign({},S);
+      delete toSave.modal;delete toSave.expandedId;
+      localStorage.setItem(STORAGE_KEY,JSON.stringify(toSave));
+      const ind=document.getElementById('save-indicator');
+      ind.classList.add('show');
+      setTimeout(()=>ind.classList.remove('show'),1500);
+    }catch(e){}
+  },400);
+}
+
+let S=loadState();
+
+function getStatus(env){const p=env.balance/env.target;return p>=1?'funded':p>=0.5?'ontrack':'behind';}
+function getAvg(env){if(!env.history||!env.history.length)return env.target;return env.history.reduce((a,b)=>a+b,0)/env.history.length;}
+
+function showTab(name,btn){
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='insights')renderInsights();
+  if(name==='income')renderIncomePanel();
+  if(name==='transactions')renderTransactions();
+}
+function setPeriod(p,btn){S.period=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInsights();}
+
+function addToPool(){
+  const v=parseFloat(document.getElementById('sav-add-input').value);
+  if(isNaN(v)||v<=0)return;
+  S.savingsPool+=v;document.getElementById('sav-add-input').value='';
+  saveState();render();
+}
+
+function addIncome(type,amount,label){
+  const amt=amount||parseFloat(document.getElementById('custom-inc-amt').value);
+  const lbl=label||document.getElementById('custom-inc-lbl').value||'Income';
+  if(isNaN(amt)||amt<=0)return;
+  S.unallocated+=amt;
+  S.incomeLog.unshift({type,amount:amt,label:lbl,date:fmtShort(today())});
+  if(!amount){document.getElementById('custom-inc-amt').value='';document.getElementById('custom-inc-lbl').value='';}
+  saveState();render();
+  if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();
+}
+
+function closeMB(e){document.getElementById('modal-backdrop').style.display='none';S.modal=null;}
+function openModalEl(){document.getElementById('modal-backdrop').style.display='flex';}
+function openPaySettingsModal(){
+  if(!S.paySchedule){
+    S.paySchedule={biweeklyEnabled:true,anchorDate:'2026-04-17',retainerEnabled:true,retainerDays:[1,20]};
+  }
+  const ps=S.paySchedule;
+  if(!Array.isArray(ps.retainerDays))ps.retainerDays=[1,20];
+  S.modal={
+    type:'paysettings',
+    biweeklyEnabled:ps.biweeklyEnabled!==false,
+    anchorDate:ps.anchorDate||'2026-04-17',
+    retainerEnabled:ps.retainerEnabled!==false,
+    retainerDays:ps.retainerDays.join(', ')
+  };
+  renderModal();
+  document.getElementById('modal-backdrop').style.display='flex';
+}
+function openResetModal(){
+  S.modal={type:'reset'};
+  renderModal();
+  document.getElementById('modal-backdrop').style.display='flex';
+}
+function doReset(){
+  const fresh=JSON.parse(JSON.stringify(DEFAULT_STATE));
+  fresh.envelopes=[];
+  fresh.savings=[];
+  fresh.incomeLog=[];
+  fresh.unallocated=0;
+  fresh.savingsPool=0;
+  // keep their pay schedule if they already set it
+  fresh.paySchedule=S.paySchedule;
+  Object.assign(S,fresh);
+  S.modal=null;
+  S.expandedId=null;
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(S));
+  document.getElementById('modal-backdrop').style.display='none';
+  render();
+}
+function savePaySettings(){
+  const m=S.modal;
+  // parse retainer days — allow comma or space separated
+  const rdRaw=document.getElementById('ps-rdays').value;
+  const rd=rdRaw.split(/[,\s]+/).map(n=>parseInt(n.trim())).filter(n=>!isNaN(n)&&n>=1&&n<=31);
+  S.paySchedule={
+    biweeklyEnabled:document.getElementById('ps-bw').checked,
+    anchorDate:document.getElementById('ps-anchor').value||m.anchorDate,
+    retainerEnabled:document.getElementById('ps-ret').checked,
+    retainerDays:rd.length?rd:[1,20]
+  };
+  closeMB();saveState();render();
+  if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();
+}
+function openAddModal(){S.modal={type:'add',env:{name:'',icon:'🛒',etype:'variable',target:'',dueDay:''}};renderModal();openModalEl();}
+function openSpendModal(id){S.modal={type:'spend',id,amount:'',desc:''};renderModal();openModalEl();}
+function openFundModal(id){S.modal={type:'fund',id,dir:'add'};renderModal();openModalEl();}
+function openEditModal(id){
+  const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===id);
+  S.modal={type:'edit',id,balance:env.balance,target:env.target,dueDay:env.dueDay!=null?env.dueDay:''};
+  renderModal();openModalEl();
+}
+function openSavFundModal(id){S.modal={type:'savfund',id};renderModal();openModalEl();}
+function openSavSpendModal(id){S.modal={type:'savspend',id,amount:'',desc:''};renderModal();openModalEl();}
+
+function renderModal(){
+  const m=S.modal;const inner=document.getElementById('modal-inner');if(!m){inner.innerHTML='';return;}
+  if(m.type==='paysettings'){
+    inner.innerHTML=`<div class="modal-title">Pay Schedule</div>
+      <div style="background:var(--bg3);border-radius:8px;padding:11px 13px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div>
+            <div style="font-size:13px;color:var(--cream);font-weight:500;">Biweekly Paycheck</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;">Every 14 days from your anchor date</div>
+          </div>
+          <input type="checkbox" id="ps-bw" ${m.biweeklyEnabled?'checked':''} style="width:16px;height:16px;accent-color:var(--rose);cursor:pointer;"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Last or next known payday</label>
+          <input class="form-input" id="ps-anchor" type="date" value="${m.anchorDate}" style="color-scheme:dark;"/>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;">Enter any date you know is a payday — the app calculates all future ones from there.</div>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:11px 13px;margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div>
+            <div style="font-size:13px;color:var(--cream);font-weight:500;">Retainer Checks</div>
+            <div style="font-size:10px;color:var(--text3);margin-top:2px;">Fixed days each month</div>
+          </div>
+          <input type="checkbox" id="ps-ret" ${m.retainerEnabled?'checked':''} style="width:16px;height:16px;accent-color:var(--rose);cursor:pointer;"/>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Days of month (comma separated)</label>
+          <input class="form-input" id="ps-rdays" type="text" inputmode="numeric" placeholder="e.g. 1, 20" value="${m.retainerDays}"/>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;">Add as many days as you need — e.g. 1, 15, 20</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="savePaySettings()">Save Schedule</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Starting fresh or sharing with a friend?</div>
+        <button class="btn btn-danger btn-sm" onclick="closeMB();openResetModal()">Reset to blank</button>
+      </div>`;
+  } else if(m.type==='reset'){
+    inner.innerHTML=`<div class="modal-title">Reset to Blank</div>
+      <div style="background:rgba(196,112,112,0.08);border:1px solid rgba(196,112,112,0.25);border-radius:9px;padding:13px;margin-bottom:16px;">
+        <div style="font-size:13px;color:var(--danger);font-weight:500;margin-bottom:6px;">This will permanently delete:</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.8;">
+          All envelopes and balances<br/>
+          All transactions<br/>
+          All income log entries<br/>
+          Your unallocated balance and savings pool
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;">Your pay schedule settings will be kept.</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:16px;text-align:center;">This cannot be undone. Are you sure?</div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" style="flex:1" onclick="doReset()">Yes, reset everything</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='add'){
+    const e=m.env;
+    inner.innerHTML=`<div class="modal-title">New Envelope</div>
+      <div class="form-group"><label class="form-label">Name</label>
+        <input class="form-input" placeholder="e.g. Kids Activities" value="${e.name}" oninput="S.modal.env.name=this.value"/></div>
+      <div class="form-group"><label class="form-label">Icon</label>
+        <div class="emoji-picker">${EMOJIS.map(em=>`<div class="emoji-opt${e.icon===em?' selected':''}" onclick="S.modal.env.icon='${em}';renderModal()">${em}</div>`).join('')}</div></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-select" onchange="S.modal.env.etype=this.value;renderModal()">
+            <option value="fixed"${e.etype==='fixed'?' selected':''}>Fixed Bill</option>
+            <option value="variable"${e.etype==='variable'?' selected':''}>Variable</option>
+            <option value="savings"${e.etype==='savings'?' selected':''}>Savings Goal</option>
+          </select></div>
+        <div class="form-group"><label class="form-label">Monthly Amount ($)${e.etype==='variable'?' <span style="color:var(--text3);font-weight:400;">(optional)</span>':''}</label>
+          <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${e.target}" oninput="S.modal.env.target=this.value"/></div>
+      </div>
+      ${e.etype==='fixed'?`<div class="form-group"><label class="form-label">Due Day of Month</label>
+        <input class="form-input" type="number" min="1" max="31" placeholder="e.g. 15" value="${e.dueDay}" oninput="S.modal.env.dueDay=this.value"/></div>`:''}
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doAdd()">Create</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='edit'){
+    const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
+    inner.innerHTML=`<div class="modal-title">Edit — ${env.icon} ${env.name}</div>
+      <div class="form-group"><label class="form-label">Current Balance ($)</label>
+        <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.balance}" oninput="S.modal.balance=parseFloat(this.value)||0"/>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;">Set exact balance. No funds move automatically.</div></div>
+      <div class="form-group"><label class="form-label">Monthly Target ($)</label>
+        <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.target}" oninput="S.modal.target=parseFloat(this.value)||0"/></div>
+      ${env.dueDay!==undefined?`<div class="form-group"><label class="form-label">Due Day of Month</label>
+        <input class="form-input" type="number" min="1" max="31" placeholder="none" value="${m.dueDay}" oninput="S.modal.dueDay=this.value"/></div>`:''}
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doEdit()">Save</button>
+        <button class="btn btn-danger btn-sm" onclick="doDelete()">Delete</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='spend'){
+    const env=S.envelopes.find(e=>e.id===m.id);const after=env.balance-(parseFloat(m.amount)||0);const neg=after<0;
+    inner.innerHTML=`<div class="modal-title">Record Spend — ${env.icon} ${env.name}</div>
+      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
+        <div><div class="si-label">Current</div><div class="si-val">${fmt(env.balance)}</div></div>
+        <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="spend-after">${fmt(after)}</div></div>
+      </div></div>
+      <div id="spend-warn">${neg?`<div class="warning-toast">⚠ This puts the envelope negative by ${fmt(Math.abs(after))}.</div>`:''}</div>
+      <div class="form-group"><label class="form-label">Amount ($)</label>
+        <input class="form-input" id="spend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSpendPreview(${env.balance})"/></div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <input class="form-input" id="spend-desc" placeholder="e.g. HEB"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doSpend()">Record</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='fund'){
+    const env=S.envelopes.find(e=>e.id===m.id);const rec=Math.ceil(getAvg(env)*100)/100;const needed=Math.max(0,env.target-env.balance);
+    const dir=m.dir||'add';
+    inner.innerHTML=`<div class="modal-title">Fund — ${env.icon} ${env.name}</div>
+      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
+        <div><div class="si-label">Balance</div><div class="si-val">${fmt(env.balance)}</div></div>
+        <div><div class="si-label">Unallocated</div><div class="si-val" style="color:${S.unallocated<0?'var(--danger)':'var(--rose-light)'}">${fmt(S.unallocated)}</div></div>
+        <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="fund-after">${fmt(env.balance)}</div></div>
+      </div></div>
+      <div class="rec-box"><div style="font-size:11px;color:var(--text2)">Avg-based suggestion</div>
+        <div><span class="rec-amount">${fmt(rec)}</span> <button class="btn btn-sm" onclick="document.getElementById('fu-a').value='${rec}';updateFundPreview(${env.balance},${S.unallocated})">Use</button></div></div>
+      <div class="form-group" style="margin-top:11px;">
+        <label class="form-label">Amount ($)</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+          <button id="fund-add-btn" class="btn${dir==='add'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('add',${env.balance},${S.unallocated})">+ Add</button>
+          <button id="fund-sub-btn" class="btn${dir==='sub'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('sub',${env.balance},${S.unallocated})">− Remove</button>
+        </div>
+        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})"/>
+        <div style="font-size:9px;color:var(--text3);margin-top:4px;">${dir==='add'?'Pulls from unallocated into this envelope':'Returns from this envelope back to unallocated'}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doFund()">Confirm</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='savfund'){
+    const sav=S.savings.find(e=>e.id===m.id);const needed=Math.max(0,sav.target-sav.balance);
+    inner.innerHTML=`<div class="modal-title">Deposit — ${sav.icon} ${sav.name}</div>
+      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
+        <div><div class="si-label">Saved</div><div class="si-val" style="color:var(--info)">${fmt(sav.balance)}</div></div>
+        <div><div class="si-label">Goal</div><div class="si-val">${fmt(sav.target)}</div></div>
+        <div style="text-align:right"><div class="si-label">Remaining</div><div class="si-val">${fmt(needed)}</div></div>
+      </div></div>
+      <div style="font-size:10px;color:var(--info);margin-bottom:10px;">Savings Pool available: ${fmt(S.savingsPool)}</div>
+      <div class="form-group"><label class="form-label">Amount ($)</label>
+        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-info" style="flex:1" onclick="doSavFund()">Move from Pool</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='savspend'){
+    const sav=S.savings.find(e=>e.id===m.id);const after=sav.balance-(parseFloat(m.amount)||0);
+    inner.innerHTML=`<div class="modal-title">Withdraw — ${sav.icon} ${sav.name}</div>
+      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
+        <div><div class="si-label">Current</div><div class="si-val" style="color:var(--info)">${fmt(sav.balance)}</div></div>
+        <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="savspend-after">${fmt(after)}</div></div>
+      </div></div>
+      <div class="form-group"><label class="form-label">Amount ($)</label>
+        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSavSpendPreview(${sav.balance})"/></div>
+      <div class="form-group"><label class="form-label">Reason</label>
+        <input class="form-input" id="savspend-desc" placeholder="e.g. Car repair"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-danger" style="flex:1" onclick="doSavSpend()">Withdraw</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='edittx'){
+    const allEnvs=[...S.envelopes,...S.savings];
+    const env=allEnvs.find(e=>e.id===m.envId);
+    const tx=env.transactions[m.txIdx];
+    inner.innerHTML=`<div class="modal-title">Edit Transaction</div>
+      <div class="sib" style="margin-bottom:12px;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${env.icon} ${env.name}</div>
+        <div style="font-size:12px;color:var(--text2);">Editing will adjust the envelope balance automatically.</div>
+      </div>
+      <div class="form-group"><label class="form-label">Description</label>
+        <input class="form-input" id="edittx-desc" value="${tx.desc}"/></div>
+      <div class="form-group"><label class="form-label">Amount ($)</label>
+        <input class="form-input" id="edittx-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${Math.abs(tx.amount).toFixed(2)}"/>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;">Enter as positive — direction (in/out) stays the same.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doEditTx()">Save</button>
+        <button class="btn btn-danger btn-sm" onclick="doDeleteTx()">Delete</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  } else if(m.type==='editincome'){
+    const ITYPES=['biweekly','retainer','other'];
+    inner.innerHTML=`<div class="modal-title">Edit Income Entry</div>
+      <div class="form-group"><label class="form-label">Label</label>
+        <input class="form-input" value="${m.label}" oninput="S.modal.label=this.value"/></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Amount ($)</label>
+          <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.amount}" oninput="S.modal.amount=this.value"/>
+          <div style="font-size:9px;color:var(--text3);margin-top:3px;">Editing adjusts your unallocated balance.</div></div>
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-select" onchange="S.modal.itype=this.value">
+            ${ITYPES.map(t=>`<option value="${t}"${m.itype===t?' selected':''}>${t}</option>`).join('')}
+          </select></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doEditIncome()">Save</button>
+        <button class="btn btn-danger btn-sm" onclick="doDeleteIncome()">Delete</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
+  }
+}
+
+function doAdd(){
+  const e=S.modal.env;
+  if(!e.name.trim())return;
+  if(e.etype!=='variable'&&!e.target)return;
+  if(e.etype==='savings'){
+    S.savings.push({id:S.nextId++,name:e.name.trim(),icon:e.icon,target:parseFloat(e.target)||0,balance:0,transactions:[]});
+  } else {
+    S.envelopes.push({id:S.nextId++,name:e.name.trim(),icon:e.icon,type:e.etype,target:parseFloat(e.target)||0,balance:0,dueDay:e.dueDay?parseInt(e.dueDay):null,transactions:[],history:[]});
+  }
+  closeMB();saveState();render();
+}
+function doEdit(){
+  const m=S.modal;const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
+  if(env){env.balance=parseFloat(m.balance)||0;env.target=parseFloat(m.target)||env.target;if(env.dueDay!==undefined)env.dueDay=m.dueDay?parseInt(m.dueDay):null;}
+  closeMB();saveState();render();
+}
+function doDelete(){
+  const id=S.modal.id;
+  S.envelopes=S.envelopes.filter(e=>e.id!==id);S.savings=S.savings.filter(e=>e.id!==id);
+  closeMB();saveState();render();
+}
+function openEditIncomeModal(idx){
+  const entry=S.incomeLog[idx];
+  S.modal={type:'editincome',idx,label:entry.label,amount:entry.amount,itype:entry.type};
+  renderModal();openModalEl();
+}
+function doEditIncome(){
+  const m=S.modal;
+  const newAmt=parseFloat(m.amount);
+  if(isNaN(newAmt)||newAmt<=0)return;
+  const oldAmt=S.incomeLog[m.idx].amount;
+  S.unallocated+=(newAmt-oldAmt);
+  S.incomeLog[m.idx].amount=newAmt;
+  S.incomeLog[m.idx].label=m.label||S.incomeLog[m.idx].label;
+  S.incomeLog[m.idx].type=m.itype;
+  closeMB();saveState();render();
+  renderIncomePanel();
+}
+function doDeleteIncome(){
+  const m=S.modal;
+  S.unallocated-=S.incomeLog[m.idx].amount;
+  S.incomeLog.splice(m.idx,1);
+  closeMB();saveState();render();
+  renderIncomePanel();
+}
+function updateSpendPreview(bal){
+  const amt=parseFloat(document.getElementById('spend-amt').value)||0;
+  const after=bal-amt;
+  const el=document.getElementById('spend-after');
+  if(el){el.textContent=fmt(after);el.className='si-val'+(after<0?' warn':'');}
+  const w=document.getElementById('spend-warn');
+  if(w){w.innerHTML=after<0?`<div class="warning-toast">⚠ This puts the envelope negative by ${fmt(Math.abs(after))}.</div>`:'';}
+}
+function updateSavSpendPreview(bal){
+  const amt=parseFloat(document.getElementById('savspend-amt').value)||0;
+  const after=bal-amt;
+  const el=document.getElementById('savspend-after');
+  if(el){el.textContent=fmt(after);el.className='si-val'+(after<0?' warn':'');}
+}
+function doSpend(){
+  const m=S.modal;const env=S.envelopes.find(e=>e.id===m.id);
+  const amt=parseFloat(document.getElementById('spend-amt').value);
+  const desc=document.getElementById('spend-desc').value;
+  if(isNaN(amt)||amt<=0)return;
+  env.balance-=amt;env.transactions.unshift({desc:desc||'Purchase',amount:-amt,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function setFundDir(dir,bal,unalloc){
+  S.modal.dir=dir;
+  document.getElementById('fund-add-btn').className='btn'+(dir==='add'?' btn-primary':'');
+  document.getElementById('fund-sub-btn').className='btn'+(dir==='sub'?' btn-primary':'');
+  const hint=document.querySelector('#fu-a+div');
+  if(hint)hint.textContent=dir==='add'?'Pulls from unallocated into this envelope':'Returns from this envelope back to unallocated';
+  updateFundPreview(bal,unalloc);
+}
+function updateFundPreview(bal,unalloc){
+  const amt=parseFloat(document.getElementById('fu-a').value)||0;
+  const dir=S.modal.dir||'add';
+  const after=dir==='add'?bal+amt:bal-amt;
+  const el=document.getElementById('fund-after');
+  if(el){el.textContent=fmt(after);el.style.color=after<0?'var(--danger)':'var(--cream)';}
+}
+function doFund(){
+  const m=S.modal;const env=S.envelopes.find(e=>e.id===m.id);
+  const amt=parseFloat(document.getElementById('fu-a').value);
+  if(isNaN(amt)||amt<=0)return;
+  const dir=m.dir||'add';
+  if(dir==='add'){
+    if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
+    env.balance+=amt;S.unallocated-=amt;
+    env.transactions.unshift({desc:'Funded',amount:amt,date:fmtShort(today())});
+  } else {
+    if(amt>env.balance){alert('Not enough balance in this envelope.');return;}
+    env.balance-=amt;S.unallocated+=amt;
+    env.transactions.unshift({desc:'Returned to unallocated',amount:-amt,date:fmtShort(today())});
+  }
+  closeMB();saveState();render();
+}
+function doSavFund(){
+  const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
+  const amt=parseFloat(document.getElementById('sf-a').value);
+  if(isNaN(amt)||amt<=0)return;if(amt>S.savingsPool){alert('Not enough in savings pool.');return;}
+  sav.balance+=amt;S.savingsPool-=amt;
+  sav.transactions.unshift({desc:'Deposit',amount:amt,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function doSavSpend(){
+  const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
+  const amt=parseFloat(document.getElementById('savspend-amt').value);
+  const desc=document.getElementById('savspend-desc').value;
+  if(isNaN(amt)||amt<=0)return;
+  sav.balance-=amt;S.savingsPool+=amt;
+  sav.transactions.unshift({desc:desc||'Withdrawal',amount:-amt,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function toggleExpand(id){S.expandedId=S.expandedId===id?null:id;render();}
+
+function renderPaydayBanner(){
+  const pays=getPaydays(4);
+  return`<div class="payday-banner">${pays.map((p,i)=>`
+    <div class="pay-slot${i===0?' next':''}">
+      <div class="ps-label">${i===0?'Next':'Upcoming'} — ${p.label}</div>
+      <div class="ps-date">${fmtShort(p.date)}</div>
+      <div class="ps-days">${daysUntil(p.date)===0?'Today':'in '+daysUntil(p.date)+'d'}</div>
+    </div>`).join('')}</div>`;
+}
+
+function renderEnvCard(env){
+  const isVar=env.type==='variable';
+  const exp=S.expandedId===env.id;
+  const txHtml=env.transactions.slice(0,3).map(t=>`
+    <div class="tx-row">
+      <div><div class="tx-name">${t.desc}</div><div class="tx-date">${t.date}</div></div>
+      <div class="tx-amount${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
+    </div>`).join('')||`<div style="font-size:10px;color:var(--text3);padding:5px 0;">No transactions yet.</div>`;
+
+  if(isVar){
+    // Variable: just show balance, no target/status/progress bar
+    return`<div class="envelope-card${exp?' expanded':''}">
+      <div class="env-header" onclick="toggleExpand(${env.id})">
+        <div class="env-icon">${env.icon}</div>
+        <div class="env-info"><div class="env-name">${env.name}</div><div class="env-meta"><span style="font-size:9px;color:var(--text3);">variable</span></div></div>
+        <div class="env-right">
+          <div class="env-balance" style="color:${env.balance<0?'var(--danger)':'var(--cream)'}">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
+          <div class="env-of" style="color:var(--text3);font-size:10px;">available</div>
+        </div>
+      </div>
+      <div class="env-expanded${exp?' show':''}">
+        <div class="detail-grid" style="grid-template-columns:repeat(2,1fr);">
+          <div><div class="dl">Balance</div><div class="dv">${fmt(env.balance)}</div></div>
+          <div><div class="dl">Total Spent</div><div class="dv">${fmt(env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0))}</div></div>
+        </div>
+        <div class="tx-list">${txHtml}</div>
+        <div class="action-row">
+          <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
+          <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
+          <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Fixed: full status/progress/due date logic
+  const status=getStatus(env);
+  const pct=Math.min(100,Math.round((env.balance/env.target)*100));
+  const bClass=status==='funded'?'badge-funded':status==='ontrack'?'badge-ontrack':'badge-behind';
+  const bText=status==='funded'?'Funded':status==='ontrack'?'On Track':'Behind';
+  const barColor=status==='funded'?'var(--success)':status==='ontrack'?'var(--warning)':'var(--danger)';
+  const needed=Math.max(0,env.target-env.balance);
+  let metaChips='';
+  if(env.dueDay){
+    const dl=getDaysLeft(env.dueDay);const urgent=dl<=5;
+    metaChips+=`<span class="due-chip${urgent?' urgent':''}">Due ${dl===0?'today':dl+'d'}</span>`;
+    const cp=getNextPayBeforeDue(env.dueDay);
+    if(cp)metaChips+=`<span class="cover-chip cover-ok">Covered by ${cp.type==='biweekly'?'paycheck':'retainer'} ${fmtShort(cp.date)}</span>`;
+    else metaChips+=`<span class="cover-chip cover-warn">No pay before due</span>`;
+  }
+  let wkly='';
+  if(env.dueDay&&needed>0){const dl=getDaysLeft(env.dueDay);const wk=Math.ceil((needed/Math.max(dl,1))*7);wkly=`<div><div class="dl">Weekly needed</div><div class="dv">${fmt(wk)}/wk</div></div>`;}
+  return`<div class="envelope-card${exp?' expanded':''}">
+    <div class="env-header" onclick="toggleExpand(${env.id})">
+      <div class="env-icon">${env.icon}</div>
+      <div class="env-info"><div class="env-name">${env.name}</div><div class="env-meta">${metaChips}</div></div>
+      <div class="env-right">
+        <div class="env-balance" style="color:${env.balance<0?'var(--danger)':'var(--cream)'}">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
+        <div class="env-of">of ${fmt(env.target)}</div>
+        <div><span class="status-badge ${bClass}">${bText}</span></div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${barColor};"></div></div>
+    <div class="env-expanded${exp?' show':''}">
+      <div class="detail-grid">
+        <div><div class="dl">Balance</div><div class="dv">${fmt(env.balance)}</div></div>
+        <div><div class="dl">Needed</div><div class="dv">${fmt(needed)}</div></div>
+        <div><div class="dl">Progress</div><div class="dv">${pct}%</div></div>
+        ${wkly}
+      </div>
+      <div class="tx-list">${txHtml}</div>
+      <div class="action-row">
+        <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
+        <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
+        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderSavCard(sav){
+  const pct=Math.min(100,Math.round((sav.balance/sav.target)*100));
+  const exp=S.expandedId===sav.id;
+  const txHtml=sav.transactions.slice(0,3).map(t=>`
+    <div class="tx-row">
+      <div><div class="tx-name">${t.desc}</div><div class="tx-date">${t.date}</div></div>
+      <div class="tx-amount${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
+    </div>`).join('')||`<div style="font-size:10px;color:var(--text3);padding:5px 0;">No activity yet.</div>`;
+  return`<div class="envelope-card${exp?' expanded':''}">
+    <div class="env-header" onclick="toggleExpand(${sav.id})">
+      <div class="env-icon">${sav.icon}</div>
+      <div class="env-info"><div class="env-name">${sav.name}</div><div class="env-meta"><span style="font-size:9px;color:var(--info);">savings goal</span></div></div>
+      <div class="env-right">
+        <div class="env-balance" style="color:var(--info)">${fmt(sav.balance)}</div>
+        <div class="env-of">goal: ${fmt(sav.target)}</div>
+        <div><span class="status-badge" style="background:rgba(122,159,196,.12);color:var(--info);border:1px solid rgba(122,159,196,.25);">${pct}% of goal</span></div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--info);"></div></div>
+    <div class="env-expanded${exp?' show':''}">
+      <div class="detail-grid">
+        <div><div class="dl">Saved</div><div class="dv" style="color:var(--info)">${fmt(sav.balance)}</div></div>
+        <div><div class="dl">Goal</div><div class="dv">${fmt(sav.target)}</div></div>
+        <div><div class="dl">Remaining</div><div class="dv">${fmt(Math.max(0,sav.target-sav.balance))}</div></div>
+        <div><div class="dl">Progress</div><div class="dv">${pct}%</div></div>
+      </div>
+      <div class="tx-list">${txHtml}</div>
+      <div class="action-row">
+        <button class="btn btn-info btn-sm" onclick="openSavFundModal(${sav.id});event.stopPropagation()">+ Deposit</button>
+        <button class="btn btn-sm" onclick="openSavSpendModal(${sav.id});event.stopPropagation()">- Withdraw</button>
+        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${sav.id});event.stopPropagation()">✏ Edit</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ---- TRANSACTION LOG ----
+let txFilter='all';
+let txSearch='';
+
+function getAllTransactions(){
+  const all=[];
+  S.envelopes.forEach(env=>{
+    env.transactions.forEach((t,i)=>{
+      all.push({envId:env.id,txIdx:i,icon:env.icon,envName:env.name,envType:env.type,desc:t.desc,amount:t.amount,date:t.date});
+    });
+  });
+  S.savings.forEach(sav=>{
+    sav.transactions.forEach((t,i)=>{
+      all.push({envId:sav.id,txIdx:i,icon:sav.icon,envName:sav.name,envType:'savings',desc:t.desc,amount:t.amount,date:t.date});
+    });
+  });
+  all.sort((a,b)=>{
+    const da=new Date(a.date+'2026')||0;
+    const db=new Date(b.date+'2026')||0;
+    return db-da;
+  });
+  return all;
+}
+
+function setTxFilter(f,btn){
+  txFilter=f;
+  document.querySelectorAll('.txlog-filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTransactions();
+}
+
+function renderTransactions(){
+  const container=document.getElementById('transactions-panel');
+  let all=getAllTransactions();
+
+  if(txFilter==='spending') all=all.filter(t=>t.amount<0&&t.envType!=='savings');
+  else if(txFilter==='funding') all=all.filter(t=>t.amount>0&&t.envType!=='savings');
+  else if(txFilter==='savings') all=all.filter(t=>t.envType==='savings');
+
+  const search=document.getElementById('txlog-search-input');
+  const q=search?search.value.toLowerCase():txSearch;
+  if(q) all=all.filter(t=>t.desc.toLowerCase().includes(q)||t.envName.toLowerCase().includes(q));
+
+  const totalSpent=all.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);
+  const totalIn=all.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0);
+
+  const rows=all.length?all.map(t=>`
+    <div class="txlog-row">
+      <div class="txlog-icon">${t.icon}</div>
+      <div class="txlog-info">
+        <div class="txlog-desc">${t.desc}</div>
+        <div class="txlog-env">${t.envName}</div>
+      </div>
+      <div class="txlog-right">
+        <div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
+        <div class="txlog-date">${t.date}</div>
+      </div>
+      <div class="txlog-actions">
+        <button class="btn btn-sm" style="color:var(--text3);font-size:10px;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
+      </div>
+    </div>`).join(''):`<div class="txlog-empty">No transactions found.</div>`;
+
+  container.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--nude);font-weight:600;">All Transactions</div>
+      <div style="font-size:11px;color:var(--text3);">${all.length} entries</div>
+    </div>
+    <div class="txlog-filters">
+      <button class="txlog-filter-btn${txFilter==='all'?' active':''}" onclick="setTxFilter('all',this)">All</button>
+      <button class="txlog-filter-btn${txFilter==='spending'?' active':''}" onclick="setTxFilter('spending',this)">Spending</button>
+      <button class="txlog-filter-btn${txFilter==='funding'?' active':''}" onclick="setTxFilter('funding',this)">Funding</button>
+      <button class="txlog-filter-btn${txFilter==='savings'?' active':''}" onclick="setTxFilter('savings',this)">Savings</button>
+      <input class="txlog-search" id="txlog-search-input" placeholder="Search..." value="${q}" oninput="txSearch=this.value;renderTransactions()"/>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;">
+      <div style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:3px;">Total Out</div>
+        <div style="font-size:16px;font-weight:600;color:var(--danger);">${fmt(totalSpent)}</div>
+      </div>
+      <div style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;">
+        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:3px;">Total In</div>
+        <div style="font-size:16px;font-weight:600;color:var(--success);">${fmt(totalIn)}</div>
+      </div>
+    </div>
+    <div class="txlog-group">${rows}</div>`;
+}
+
+function openEditTxModal(envId,txIdx){
+  const allEnvs=[...S.envelopes,...S.savings];
+  const env=allEnvs.find(e=>e.id===envId);
+  if(!env)return;
+  const tx=env.transactions[txIdx];
+  if(!tx)return;
+  S.modal={type:'edittx',envId,txIdx,desc:tx.desc,amount:Math.abs(tx.amount),isNeg:tx.amount<0};
+  renderModal();
+  document.getElementById('modal-backdrop').style.display='flex';
+}
+
+function doEditTx(){
+  const m=S.modal;
+  const allEnvs=[...S.envelopes,...S.savings];
+  const env=allEnvs.find(e=>e.id===m.envId);
+  if(!env)return;
+  const tx=env.transactions[m.txIdx];
+  const newAmt=parseFloat(document.getElementById('edittx-amt').value);
+  const newDesc=document.getElementById('edittx-desc').value||tx.desc;
+  if(isNaN(newAmt)||newAmt<=0)return;
+  const oldSigned=tx.amount;
+  const newSigned=m.isNeg?-newAmt:newAmt;
+  // adjust envelope balance by the difference
+  env.balance+=(newSigned-oldSigned);
+  tx.amount=newSigned;
+  tx.desc=newDesc;
+  closeMB();saveState();render();
+  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
+}
+
+function doDeleteTx(){
+  const m=S.modal;
+  const allEnvs=[...S.envelopes,...S.savings];
+  const env=allEnvs.find(e=>e.id===m.envId);
+  if(!env)return;
+  const tx=env.transactions[m.txIdx];
+  // reverse the transaction's effect on the balance
+  env.balance-=tx.amount;
+  env.transactions.splice(m.txIdx,1);
+  closeMB();saveState();render();
+  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
+}
+
+function renderIncomePanel(){
+  const pays=getPaydays(8);
+  const logHtml=S.incomeLog.length?S.incomeLog.map((l,i)=>`
+    <div class="income-log-row">
+      <div><div class="il-name">${l.label}<span class="il-type ${l.type}">${l.type}</span></div><div class="il-date">${l.date}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="il-amt">+${fmt(l.amount)}</div>
+        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;color:var(--text3);" onclick="openEditIncomeModal(${i})">✏</button>
+      </div>
+    </div>`).join(''):`<div style="font-size:11px;color:var(--text3);padding:8px 0;">No income logged yet.</div>`;
+  document.getElementById('income-panel-full').innerHTML=`
+    <div class="income-panel">
+      <div class="income-panel-title">Log Income</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+        <button class="quick-btn" onclick="addIncome('biweekly',null,'Biweekly Paycheck')">+ Paycheck</button>
+        <button class="quick-btn" onclick="addIncome('retainer',null,'Retainer — 1st')">+ Retainer — 1st</button>
+        <button class="quick-btn" onclick="addIncome('retainer',null,'Retainer — 20th')">+ Retainer — 20th</button>
+      </div>
+      <div style="font-size:9px;color:var(--text3);margin-bottom:8px;">Enter amount first, then tap a button — or log custom income below.</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" style="width:130px;"/>
+        <input class="finput" id="custom-inc-lbl" placeholder="Label (optional)" style="flex:1;min-width:140px;"/>
+        <button class="btn btn-primary btn-sm" onclick="addIncome('other')">+ Add</button>
+      </div>
+      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:11px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:7px;">Income Log</div>
+        ${logHtml}
+      </div>
+    </div>
+    <div class="income-panel">
+      <div class="income-panel-title">Upcoming Pay Schedule</div>
+      ${pays.map((p,i)=>`
+        <div class="income-log-row">
+          <div><div class="il-name">${p.label}<span class="il-type ${p.type}">${p.type}</span></div>
+            <div class="il-date">${fmtFull(p.date)}</div></div>
+          <div style="font-size:10px;color:${i===0?'var(--rose-light)':'var(--text3)'};">${i===0?'Next':'in '+daysUntil(p.date)+'d'}</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderInsights(){
+  const fixed=S.envelopes.filter(e=>e.type==='fixed');
+  const variable=S.envelopes.filter(e=>e.type==='variable');
+  const billsTotal=fixed.reduce((a,e)=>a+e.target,0);
+  let html=`<div class="insight-card"><div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo total</div>
+    <div class="insight-body" style="margin-top:8px;">
+      ${fixed.map(env=>{const pct=Math.min(100,Math.round((env.balance/env.target)*100));const c=pct>=100?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
+        return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
+          <div class="trend-val">${fmt(env.balance)}/${fmt(env.target)}</div></div>`;}).join('')}
+    </div></div>`;
+  html+=`<div class="insight-card"><div class="insight-title">Variable Spending (${S.period}d)</div>
+    <div class="insight-body" style="margin-top:8px;">
+      ${variable.map(env=>{const spent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);const pct=Math.min(100,Math.round((spent/Math.max(env.target,1))*100));const c=pct>=100?'var(--danger)':pct>=75?'var(--warning)':'var(--success)';
+        return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
+          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
+          <div class="trend-val">${fmt(spent)}</div></div>`;}).join('')}
+    </div></div>`;
+  html+=`<div class="insight-card"><div class="insight-title">Funding Suggestions</div>
+    <div class="insight-body" style="margin-top:8px;">
+      ${S.envelopes.map(env=>{const rec=Math.ceil(getAvg(env)*100)/100;const diff=rec-env.target;
+        const label=Math.abs(diff)<0.01?'matches current':diff>0?`+${fmt(diff)} suggested`:`${fmt(diff)} suggested`;
+        const lc=Math.abs(diff)<0.01?'var(--text3)':diff>0?'var(--warning)':'var(--success)';
+        return`<div class="trend-bar-row" style="margin-bottom:2px;"><div class="trend-label">${env.icon} ${env.name}</div>
+          <div style="flex:1;font-size:10px;color:var(--text2);">${fmt(rec)} suggested</div>
+          <div class="trend-val" style="color:${lc};font-size:9px;">${label}</div></div>`;}).join('')}
+    </div></div>`;
+  document.getElementById('insights-content').innerHTML=html;
+}
+
+function render(){
+  document.getElementById('hdr-u').textContent=fmt(S.unallocated);
+  document.getElementById('sc-u').textContent=fmt(S.unallocated);
+  document.getElementById('sc-sp').textContent=fmt(S.savingsPool);
+  document.getElementById('pool-val').textContent=fmt(S.savingsPool);
+  const fixed=S.envelopes.filter(e=>e.type==='fixed');
+  const variable=S.envelopes.filter(e=>e.type==='variable');
+  document.getElementById('sc-b').textContent=fmt(fixed.reduce((a,e)=>a+e.target,0));
+  document.getElementById('sc-s').textContent=fmt(variable.reduce((a,e)=>a+e.transactions.filter(t=>t.amount<0).reduce((s,t)=>s+Math.abs(t.amount),0),0));
+  document.getElementById('payday-banner').innerHTML=renderPaydayBanner();
+  const fnd=envs=>envs.filter(e=>e.type==='fixed'&&getStatus(e)==='funded').length;
+  const fixedCount=envs=>envs.filter(e=>e.type==='fixed').length;
+  let html='';
+  const fixedTotal=fixed.reduce((a,e)=>a+Math.max(0,e.balance),0);
+  const fixedTarget=fixed.reduce((a,e)=>a+e.target,0);
+  const variableTotal=variable.reduce((a,e)=>a+Math.max(0,e.balance),0);
+  const savingsTotal=S.savings.reduce((a,e)=>a+e.balance,0);
+  if(fixed.length)html+=`<div class="section-header"><div class="section-title">Fixed Bills</div><div class="funded-count" style="text-align:right;">${fnd(fixed)}/${fixedCount(fixed)} funded &nbsp;·&nbsp; <span style="color:var(--cream);font-weight:500;">${fmt(fixedTotal)}</span> <span style="color:var(--text3);">/ ${fmt(fixedTarget)}</span></div></div><div class="envelope-grid">${fixed.map(renderEnvCard).join('')}</div>`;
+  if(variable.length)html+=`<div class="section-header"><div class="section-title">Variable Spending</div><div class="funded-count"><span style="color:var(--cream);font-weight:500;">${fmt(variableTotal)}</span> <span style="color:var(--text3);">available</span></div></div><div class="envelope-grid">${variable.map(renderEnvCard).join('')}</div>`;
+  if(S.savings.length)html+=`<div class="section-header" style="margin-top:16px;"><div class="section-title">Savings Goals</div><div class="funded-count"><span style="color:var(--info);font-weight:500;">${fmt(savingsTotal)}</span> <span style="color:var(--text3);">saved</span></div></div><div class="savings-note">Funded from your Savings Pool — not your spending budget.</div><div class="envelope-grid">${S.savings.map(renderSavCard).join('')}</div>`;
+
+  // Grand total bar
+  const grandTotal=fixedTotal+variableTotal+savingsTotal;
+  const grandTarget=fixedTarget+variable.reduce((a,e)=>a+e.target,0)+S.savings.reduce((a,e)=>a+e.target,0);
+  html+=`
+    <div style="margin-top:18px;background:var(--bg2);border:1px solid var(--border2);border-radius:11px;padding:13px 15px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--nude);font-weight:600;">Total Across All Envelopes</div>
+        <div style="font-size:10px;color:var(--text3);">fixed + variable + savings</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">
+        <div style="background:var(--bg3);border-radius:8px;padding:10px 11px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px;">Fixed Funded</div>
+          <div style="font-size:16px;font-weight:600;color:var(--cream);">${fmt(fixedTotal)}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;">of ${fmt(fixedTarget)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px 11px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px;">Variable Available</div>
+          <div style="font-size:16px;font-weight:600;color:var(--cream);">${fmt(variableTotal)}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;">across ${variable.length} envelope${variable.length!==1?'s':''}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:10px 11px;">
+          <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:4px;">Savings Saved</div>
+          <div style="font-size:16px;font-weight:600;color:var(--info);">${fmt(savingsTotal)}</div>
+          <div style="font-size:9px;color:var(--text3);margin-top:2px;">across ${S.savings.length} goal${S.savings.length!==1?'s':''}</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between;">
+        <div style="font-size:11px;color:var(--text2);">Grand Total in Envelopes</div>
+        <div style="font-size:22px;font-weight:600;color:var(--rose-light);">${fmt(grandTotal)}</div>
+      </div>
+    </div>`;
+  document.getElementById('sections-container').innerHTML=html;
+}
+
+render();
+
+// --- PWA INSTALL PROMPT ---
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();deferredPrompt=e;
+  if(!localStorage.getItem('vesper_install_dismissed')){
+    setTimeout(()=>{document.getElementById('install-banner').style.display='flex';},2500);
+  }
+});
+function doInstall(){
+  document.getElementById('install-banner').style.display='none';
+  if(deferredPrompt){deferredPrompt.prompt();deferredPrompt.userChoice.then(()=>{deferredPrompt=null;});}
+}
+function dismissInstall(){
+  document.getElementById('install-banner').style.display='none';
+  localStorage.setItem('vesper_install_dismissed','1');
+}
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('install-banner').style.display='none';deferredPrompt=null;
+});
+
+// --- SERVICE WORKER (inline blob so single-file works) ---
+if('serviceWorker' in navigator){
+  const sw=`const C='vesper-v1';const A=['./'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A)).then(()=>self.skipWaiting()));});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));});`;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+</script>
+</body>
+</html>
