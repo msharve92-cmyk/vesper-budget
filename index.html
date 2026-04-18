@@ -175,6 +175,45 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .txlog-actions{display:flex;gap:4px;flex-shrink:0;}
 .txlog-empty{text-align:center;padding:40px 20px;color:var(--text3);font-size:13px;}
 
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:10px 14px;}
+.cal-nav-btn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--rose-light);cursor:pointer;font-size:15px;font-family:'DM Sans',sans-serif;font-weight:600;display:flex;align-items:center;justify-content:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.cal-nav-btn:hover{background:var(--bg4);border-color:var(--rose-dim);}
+.cal-month-label{font-family:'DM Serif Display',serif;font-size:18px;color:var(--rose-light);}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
+.cal-wd{text-align:center;font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:4px 0;font-weight:600;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-cell{min-height:64px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:5px 6px;cursor:pointer;position:relative;transition:all .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;display:flex;flex-direction:column;gap:2px;overflow:hidden;}
+.cal-cell:hover{border-color:var(--border2);background:var(--bg3);}
+.cal-cell.empty{background:transparent;border-color:transparent;cursor:default;pointer-events:none;}
+.cal-cell.today{border-color:var(--rose);background:var(--bg3);}
+.cal-cell.other-month{opacity:0.35;}
+.cal-day-num{font-size:12px;font-weight:500;color:var(--text2);}
+.cal-cell.today .cal-day-num{color:var(--rose-light);font-weight:600;}
+.cal-dots{display:flex;gap:2px;flex-wrap:wrap;}
+.cal-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.cal-dot.bill{background:var(--danger);}
+.cal-dot.bill-paid{background:var(--success);}
+.cal-dot.pay{background:var(--rose-light);}
+.cal-dot.ret{background:var(--info);}
+.cal-dot.tx{background:var(--nude);}
+.cal-item{font-size:9px;color:var(--text2);background:var(--bg4);border-radius:3px;padding:1px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;}
+.cal-item.bill{background:rgba(196,112,112,.15);color:var(--danger);}
+.cal-item.bill-paid{background:rgba(127,168,135,.15);color:var(--success);}
+.cal-item.pay{background:rgba(201,150,122,.15);color:var(--rose-light);}
+.cal-item.ret{background:rgba(122,159,196,.15);color:var(--info);}
+.cal-more{font-size:9px;color:var(--text3);padding:0 4px;}
+
+.cal-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:9px;font-size:11px;color:var(--text2);}
+.cal-legend-item{display:flex;align-items:center;gap:5px;}
+.cal-legend-dot{width:8px;height:8px;border-radius:50%;}
+
+.cal-day-item{display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--bg3);border-radius:8px;margin-bottom:5px;}
+.cal-day-item-icon{width:28px;height:28px;border-radius:7px;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.cal-day-item-info{flex:1;min-width:0;}
+.cal-day-item-title{font-size:12px;color:var(--cream);font-weight:500;}
+.cal-day-item-sub{font-size:10px;color:var(--text3);margin-top:1px;}
+.cal-day-item-amt{font-size:13px;font-weight:600;flex-shrink:0;}
+
 .install-banner{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border2);padding:14px 18px;padding-bottom:calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:400;animation:slideUp .3s ease;}
 .install-banner-text{font-size:12px;color:var(--text2);line-height:1.5;}
 .install-banner-text strong{display:block;font-size:13px;color:var(--cream);margin-bottom:2px;}
@@ -199,9 +238,9 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     <div class="logo">vesper <span>budget</span></div>
     <div class="nav-tabs">
       <button class="nav-tab active" onclick="showTab('dashboard',this)">Dashboard</button>
+      <button class="nav-tab" onclick="showTab('calendar',this)">Calendar</button>
       <button class="nav-tab" onclick="showTab('income',this)">Income</button>
       <button class="nav-tab" onclick="showTab('transactions',this)">Transactions</button>
-      <button class="nav-tab" onclick="showTab('insights',this)">Insights</button>
     </div>
     <div class="hdr-right">
       <div class="val" id="hdr-u">$0.00</div>
@@ -232,6 +271,10 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
       </div>
     </div>
 
+    <div class="tab-content" id="tab-calendar">
+      <div id="calendar-panel"></div>
+    </div>
+
     <div class="tab-content" id="tab-income">
       <div id="income-panel-full"></div>
     </div>
@@ -240,15 +283,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
       <div id="transactions-panel"></div>
     </div>
 
-    <div class="tab-content" id="tab-insights">
-      <div class="section-header" style="margin-top:0;">
-        <div class="section-title">Spending Trends</div>
-        <div class="period-toggle">
-          <button class="period-btn active" onclick="setPeriod(30,this)">30d</button>
-          <button class="period-btn" onclick="setPeriod(60,this)">60d</button>
-          <button class="period-btn" onclick="setPeriod(90,this)">90d</button>
-        </div>
-      </div>
+    <div class="tab-content" id="tab-insights" style="display:none;">
       <div id="insights-content"></div>
     </div>
   </div>
@@ -411,11 +446,11 @@ function showTab(name,btn){
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if(btn)btn.classList.add('active');
-  if(name==='insights')renderInsights();
   if(name==='income')renderIncomePanel();
   if(name==='transactions')renderTransactions();
+  if(name==='calendar')renderCalendar();
 }
-function setPeriod(p,btn){S.period=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderInsights();}
+function setPeriod(p,btn){S.period=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
 
 function addToPool(){
   const v=parseFloat(document.getElementById('sav-add-input').value);
@@ -493,11 +528,31 @@ function openSpendModal(id){S.modal={type:'spend',id,amount:'',desc:''};renderMo
 function openFundModal(id){S.modal={type:'fund',id,dir:'add'};renderModal();openModalEl();}
 function openEditModal(id){
   const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===id);
-  S.modal={type:'edit',id,balance:env.balance,target:env.target,dueDay:env.dueDay!=null?env.dueDay:''};
+  S.modal={type:'edit',id,name:env.name,icon:env.icon,balance:env.balance,target:env.target,dueDay:env.dueDay!=null?env.dueDay:''};
   renderModal();openModalEl();
 }
 function openSavFundModal(id){S.modal={type:'savfund',id};renderModal();openModalEl();}
 function openSavSpendModal(id){S.modal={type:'savspend',id,amount:'',desc:''};renderModal();openModalEl();}
+function openTransferModal(fromId){
+  S.modal={type:'transfer',fromId,toId:null,amount:''};
+  renderModal();openModalEl();
+}
+function doTransfer(){
+  const m=S.modal;
+  const allEnvs=[...S.envelopes,...S.savings];
+  const fromEnv=allEnvs.find(e=>e.id===m.fromId);
+  const toEnv=allEnvs.find(e=>e.id===m.toId);
+  const amt=parseFloat(m.amount);
+  if(isNaN(amt)||amt<=0){alert('Enter a valid amount.');return;}
+  if(!toEnv){alert('Select a destination envelope.');return;}
+  if(fromEnv.id===toEnv.id){alert('Cannot transfer to the same envelope.');return;}
+  fromEnv.balance-=amt;
+  toEnv.balance+=amt;
+  const date=fmtShort(today());
+  fromEnv.transactions.unshift({desc:`Transfer to ${toEnv.name}`,amount:-amt,date});
+  toEnv.transactions.unshift({desc:`Transfer from ${fromEnv.name}`,amount:amt,date});
+  closeMB();saveState();render();
+}
 
 function renderModal(){
   const m=S.modal;const inner=document.getElementById('modal-inner');if(!m){inner.innerHTML='';return;}
@@ -582,6 +637,13 @@ function renderModal(){
   } else if(m.type==='edit'){
     const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
     inner.innerHTML=`<div class="modal-title">Edit — ${env.icon} ${env.name}</div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Name</label>
+          <input class="form-input" value="${m.name||env.name}" oninput="S.modal.name=this.value"/></div>
+        <div class="form-group"><label class="form-label">Icon</label>
+          <div class="emoji-picker">${EMOJIS.map(em=>`<div class="emoji-opt${(m.icon||env.icon)===em?' selected':''}" onclick="S.modal.icon='${em}';renderModal()">${em}</div>`).join('')}</div>
+        </div>
+      </div>
       <div class="form-group"><label class="form-label">Current Balance ($)</label>
         <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.balance}" oninput="S.modal.balance=parseFloat(this.value)||0"/>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;">Set exact balance. No funds move automatically.</div></div>
@@ -703,6 +765,132 @@ function renderModal(){
         <button class="btn btn-danger btn-sm" onclick="doDeleteIncome()">Delete</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
       </div>`;
+  } else if(m.type==='day'){
+    // Parse the iso date
+    const p=m.iso.split('-');
+    const dt=new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]));
+    const ev=getCalEvents(dt);
+    const dateLabel=dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+
+    let paysHtml='';
+    if(ev.pays.length){
+      paysHtml=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--nude);font-weight:600;margin-bottom:7px;margin-top:4px;">Income</div>`;
+      ev.pays.forEach(p=>{
+        paysHtml+=`<div class="cal-day-item">
+          <div class="cal-day-item-icon">${p.type==='biweekly'?'💰':'💼'}</div>
+          <div class="cal-day-item-info">
+            <div class="cal-day-item-title">${p.label}</div>
+            <div class="cal-day-item-sub">${p.type==='biweekly'?'Biweekly paycheck':'Retainer check'}</div>
+          </div>
+        </div>`;
+      });
+    }
+
+    let billsHtml='';
+    if(ev.bills.length){
+      billsHtml=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--nude);font-weight:600;margin-bottom:7px;margin-top:12px;">Bills Due</div>`;
+      ev.bills.forEach(b=>{
+        const statusColor=b.funded?'var(--success)':'var(--danger)';
+        const statusText=b.funded?'Fully funded':`${fmt(Math.max(0,b.env.target-b.env.balance))} short`;
+        billsHtml+=`<div class="cal-day-item">
+          <div class="cal-day-item-icon">${b.env.icon}</div>
+          <div class="cal-day-item-info">
+            <div class="cal-day-item-title">${b.env.name}</div>
+            <div class="cal-day-item-sub" style="color:${statusColor};">${statusText}</div>
+          </div>
+          <div class="cal-day-item-amt">${fmt(b.env.target)}</div>
+          <button class="btn btn-sm" onclick="closeMB();openFundModal(${b.env.id})">Fund</button>
+        </div>`;
+      });
+    }
+
+    let txsHtml='';
+    if(ev.txs.length){
+      txsHtml=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--nude);font-weight:600;margin-bottom:7px;margin-top:12px;">Transactions</div>`;
+      ev.txs.forEach(tx=>{
+        txsHtml+=`<div class="cal-day-item">
+          <div class="cal-day-item-icon">${tx.icon}</div>
+          <div class="cal-day-item-info">
+            <div class="cal-day-item-title">${tx.desc}</div>
+            <div class="cal-day-item-sub">${tx.envName}</div>
+          </div>
+          <div class="cal-day-item-amt" style="color:${tx.amount>0?'var(--success)':'var(--danger)'};">${tx.amount>0?'+':''}${fmt(tx.amount)}</div>
+          <button class="btn btn-sm" onclick="closeMB();openEditTxModal(${tx.envId},${tx.txIdx})">✏</button>
+        </div>`;
+      });
+    }
+
+    const empty=!paysHtml&&!billsHtml&&!txsHtml;
+
+    inner.innerHTML=`<div class="modal-title" style="font-size:17px;">${dateLabel}</div>
+      ${empty?`<div style="text-align:center;padding:20px 10px;color:var(--text3);font-size:13px;">Nothing scheduled or logged for this day.</div>`:''}
+      ${paysHtml}${billsHtml}${txsHtml}
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:8px;">Quick Actions</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="closeMB();showTab('dashboard',document.querySelector('.nav-tab'));setTimeout(()=>alert('Tap any envelope → Spend to record'),100)">+ Record Spend</button>
+          <button class="btn btn-sm" onclick="closeMB();showTab('income',document.querySelectorAll('.nav-tab')[2])">+ Log Income</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" style="flex:1" onclick="closeMB()">Close</button>
+      </div>`;
+  } else if(m.type==='transfer'){
+    const allEnvs=[...S.envelopes,...S.savings];
+    const fromEnv=allEnvs.find(e=>e.id===m.fromId);
+    const toId=m.toId||(allEnvs.find(e=>e.id!==m.fromId)||{}).id;
+    const toEnv=allEnvs.find(e=>e.id===toId);
+    const amt=parseFloat(m.amount)||0;
+    const fromAfter=fromEnv.balance-amt;
+    const toAfter=toEnv?toEnv.balance+amt:0;
+
+    const buildOpts=(envs,label)=>{
+      const opts=envs.filter(e=>e.id!==m.fromId).map(e=>`<option value="${e.id}"${e.id===toId?' selected':''}>${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('');
+      return opts?`<optgroup label="${label}">${opts}</optgroup>`:'';
+    };
+
+    inner.innerHTML=`<div class="modal-title">Transfer Funds</div>
+      <div style="background:var(--bg3);border-radius:9px;padding:11px 13px;margin-bottom:12px;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">From</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:18px;">${fromEnv.icon}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--cream);font-weight:500;">${fromEnv.name}</div>
+            <div style="font-size:11px;color:var(--text3);">Balance: ${fmt(fromEnv.balance)} → <span style="color:${fromAfter<0?'var(--danger)':'var(--cream)'};font-weight:500;">${fmt(fromAfter)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">To Envelope</label>
+        <select class="form-select" onchange="S.modal.toId=parseInt(this.value);renderModal()">
+          ${buildOpts(S.envelopes.filter(e=>e.type==='fixed'),'Fixed Bills')}
+          ${buildOpts(S.envelopes.filter(e=>e.type==='variable'),'Variable Spending')}
+          ${buildOpts(S.savings,'Savings Goals')}
+        </select>
+      </div>
+
+      ${toEnv?`<div style="background:var(--bg3);border-radius:9px;padding:11px 13px;margin-bottom:12px;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">To</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:18px;">${toEnv.icon}</div>
+          <div style="flex:1;">
+            <div style="font-size:13px;color:var(--cream);font-weight:500;">${toEnv.name}</div>
+            <div style="font-size:11px;color:var(--text3);">Balance: ${fmt(toEnv.balance)} → <span style="color:var(--success);font-weight:500;">${fmt(toAfter)}</span></div>
+          </div>
+        </div>
+      </div>`:''}
+
+      <div class="form-group">
+        <label class="form-label">Amount ($)</label>
+        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="S.modal.amount=this.value;renderModal()"/>
+        ${fromAfter<0?`<div style="font-size:10px;color:var(--danger);margin-top:4px;">⚠ This puts the source envelope negative by ${fmt(Math.abs(fromAfter))}</div>`:''}
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-primary" style="flex:1" onclick="doTransfer()">Transfer</button>
+        <button class="btn" onclick="closeMB()">Cancel</button>
+      </div>`;
   }
 }
 
@@ -719,7 +907,13 @@ function doAdd(){
 }
 function doEdit(){
   const m=S.modal;const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
-  if(env){env.balance=parseFloat(m.balance)||0;env.target=parseFloat(m.target)||env.target;if(env.dueDay!==undefined)env.dueDay=m.dueDay?parseInt(m.dueDay):null;}
+  if(env){
+    if(m.name&&m.name.trim())env.name=m.name.trim();
+    if(m.icon)env.icon=m.icon;
+    env.balance=parseFloat(m.balance)||0;
+    env.target=parseFloat(m.target)||env.target;
+    if(env.dueDay!==undefined)env.dueDay=m.dueDay?parseInt(m.dueDay):null;
+  }
   closeMB();saveState();render();
 }
 function doDelete(){
@@ -862,6 +1056,7 @@ function renderEnvCard(env){
         <div class="action-row">
           <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
           <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
+          <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄ Transfer</button>
           <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
         </div>
       </div>
@@ -907,6 +1102,7 @@ function renderEnvCard(env){
       <div class="action-row">
         <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
         <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
+        <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄ Transfer</button>
         <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
       </div>
     </div>
@@ -943,6 +1139,7 @@ function renderSavCard(sav){
       <div class="action-row">
         <button class="btn btn-info btn-sm" onclick="openSavFundModal(${sav.id});event.stopPropagation()">+ Deposit</button>
         <button class="btn btn-sm" onclick="openSavSpendModal(${sav.id});event.stopPropagation()">- Withdraw</button>
+        <button class="btn btn-sm" onclick="openTransferModal(${sav.id});event.stopPropagation()">⇄ Transfer</button>
         <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${sav.id});event.stopPropagation()">✏ Edit</button>
       </div>
     </div>
@@ -1079,6 +1276,161 @@ function doDeleteTx(){
   if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
 }
 
+// ---- CALENDAR ----
+let calMonth=null; // current month being viewed {year, month}
+
+function initCalMonth(){
+  if(!calMonth){
+    const t=today();
+    calMonth={year:t.getFullYear(),month:t.getMonth()};
+  }
+}
+
+function calNav(dir){
+  initCalMonth();
+  calMonth.month+=dir;
+  if(calMonth.month<0){calMonth.month=11;calMonth.year--;}
+  else if(calMonth.month>11){calMonth.month=0;calMonth.year++;}
+  renderCalendar();
+}
+
+function calGoToday(){
+  const t=today();
+  calMonth={year:t.getFullYear(),month:t.getMonth()};
+  renderCalendar();
+}
+
+function getMonthLabel(){
+  initCalMonth();
+  const d=new Date(calMonth.year,calMonth.month,1);
+  return d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+}
+
+// returns {bills, txs, pays} for a given date
+function getCalEvents(dateObj){
+  const t=today();t.setHours(0,0,0,0);
+  const dy=dateObj.getDate();
+  const inCurMonth=dateObj.getFullYear()===t.getFullYear()&&dateObj.getMonth()===t.getMonth();
+  const bills=[];
+  const txs=[];
+  const pays=[];
+
+  // Bills due on this day (only for current month view since they repeat)
+  if(inCurMonth||dateObj>=t){
+    S.envelopes.forEach(env=>{
+      if(env.type==='fixed'&&env.dueDay===dy&&dateObj.getMonth()===calMonth.month&&dateObj.getFullYear()===calMonth.year){
+        const funded=env.balance>=env.target;
+        bills.push({env,funded});
+      }
+    });
+  }
+
+  // Transactions on this date (match formatted date strings)
+  const short=fmtShort(dateObj);
+  S.envelopes.forEach(env=>{
+    env.transactions.forEach((tx,idx)=>{
+      if(tx.date===short){
+        txs.push({envId:env.id,icon:env.icon,envName:env.name,desc:tx.desc,amount:tx.amount,txIdx:idx});
+      }
+    });
+  });
+  S.savings.forEach(sav=>{
+    sav.transactions.forEach((tx,idx)=>{
+      if(tx.date===short){
+        txs.push({envId:sav.id,icon:sav.icon,envName:sav.name,desc:tx.desc,amount:tx.amount,txIdx:idx});
+      }
+    });
+  });
+
+  // Pay dates
+  const allPays=getPaydays();
+  allPays.forEach(p=>{
+    if(p.date.getFullYear()===dateObj.getFullYear()&&p.date.getMonth()===dateObj.getMonth()&&p.date.getDate()===dy){
+      pays.push(p);
+    }
+  });
+
+  return {bills,txs,pays};
+}
+
+function renderCalendar(){
+  initCalMonth();
+  const container=document.getElementById('calendar-panel');
+  const firstOfMonth=new Date(calMonth.year,calMonth.month,1);
+  const lastOfMonth=new Date(calMonth.year,calMonth.month+1,0);
+  const startDay=firstOfMonth.getDay(); // 0=Sun
+  const daysInMonth=lastOfMonth.getDate();
+  const t=today();t.setHours(0,0,0,0);
+
+  // Build 42 cells (6 weeks × 7 days)
+  const cells=[];
+  // Leading empty from previous month
+  const prevMonthLast=new Date(calMonth.year,calMonth.month,0).getDate();
+  for(let i=startDay-1;i>=0;i--){
+    cells.push({date:new Date(calMonth.year,calMonth.month-1,prevMonthLast-i),otherMonth:true});
+  }
+  for(let d=1;d<=daysInMonth;d++){
+    cells.push({date:new Date(calMonth.year,calMonth.month,d),otherMonth:false});
+  }
+  while(cells.length<42){
+    const last=cells[cells.length-1].date;
+    cells.push({date:addDays(last,1),otherMonth:true});
+  }
+  // Trim to exactly needed rows
+  while(cells.length>35&&cells[cells.length-1].otherMonth&&cells[cells.length-8].otherMonth)cells.pop();
+
+  const weekdays=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const cellsHtml=cells.map(c=>{
+    const dt=c.date;
+    const isToday=dt.getFullYear()===t.getFullYear()&&dt.getMonth()===t.getMonth()&&dt.getDate()===t.getDate();
+    const ev=getCalEvents(dt);
+
+    // Build tiny labels — show up to 2 items inline, rest as dots
+    const labels=[];
+    ev.pays.forEach(p=>labels.push({cls:p.type==='biweekly'?'pay':'ret',text:p.type==='biweekly'?'💰 Pay':'💼 Ret'}));
+    ev.bills.forEach(b=>labels.push({cls:b.funded?'bill-paid':'bill',text:b.env.icon+' '+b.env.name}));
+    const visible=labels.slice(0,2);
+    const extraCount=labels.length-visible.length+ev.txs.length;
+
+    let itemsHtml=visible.map(l=>`<div class="cal-item ${l.cls}">${l.text}</div>`).join('');
+    if(extraCount>0||ev.txs.length>0){
+      const totalHidden=Math.max(0,labels.length-visible.length)+ev.txs.length;
+      if(totalHidden>0)itemsHtml+=`<div class="cal-more">+${totalHidden} more</div>`;
+    }
+
+    const iso=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+    return `<div class="cal-cell${isToday?' today':''}${c.otherMonth?' other-month':''}" onclick="openDayModal('${iso}')">
+      <div class="cal-day-num">${dt.getDate()}</div>
+      ${itemsHtml}
+    </div>`;
+  }).join('');
+
+  container.innerHTML=`
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div class="cal-month-label">${getMonthLabel()}</div>
+        <button class="btn btn-sm" onclick="calGoToday()" style="font-size:10px;">Today</button>
+      </div>
+      <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+    </div>
+    <div class="cal-weekdays">${weekdays.map(w=>`<div class="cal-wd">${w}</div>`).join('')}</div>
+    <div class="cal-grid">${cellsHtml}</div>
+    <div class="cal-legend">
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--rose-light);"></div>Paycheck</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--info);"></div>Retainer</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--danger);"></div>Bill due</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--success);"></div>Funded</div>
+    </div>`;
+}
+
+function openDayModal(iso){
+  S.modal={type:'day',iso};
+  renderModal();
+  document.getElementById('modal-backdrop').style.display='flex';
+}
+
 function renderIncomePanel(){
   const pays=getPaydays(8);
   const logHtml=S.incomeLog.length?S.incomeLog.map((l,i)=>`
@@ -1123,30 +1475,55 @@ function renderInsights(){
   const fixed=S.envelopes.filter(e=>e.type==='fixed');
   const variable=S.envelopes.filter(e=>e.type==='variable');
   const billsTotal=fixed.reduce((a,e)=>a+e.target,0);
-  let html=`<div class="insight-card"><div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo total</div>
-    <div class="insight-body" style="margin-top:8px;">
-      ${fixed.map(env=>{const pct=Math.min(100,Math.round((env.balance/env.target)*100));const c=pct>=100?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
-        return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
-          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
-          <div class="trend-val">${fmt(env.balance)}/${fmt(env.target)}</div></div>`;}).join('')}
-    </div></div>`;
-  html+=`<div class="insight-card"><div class="insight-title">Variable Spending (${S.period}d)</div>
-    <div class="insight-body" style="margin-top:8px;">
-      ${variable.map(env=>{const spent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);const pct=Math.min(100,Math.round((spent/Math.max(env.target,1))*100));const c=pct>=100?'var(--danger)':pct>=75?'var(--warning)':'var(--success)';
-        return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
-          <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
-          <div class="trend-val">${fmt(spent)}</div></div>`;}).join('')}
-    </div></div>`;
-  html+=`<div class="insight-card"><div class="insight-title">Funding Suggestions</div>
-    <div class="insight-body" style="margin-top:8px;">
-      ${S.envelopes.map(env=>{const rec=Math.ceil(getAvg(env)*100)/100;const diff=rec-env.target;
-        const label=Math.abs(diff)<0.01?'matches current':diff>0?`+${fmt(diff)} suggested`:`${fmt(diff)} suggested`;
-        const lc=Math.abs(diff)<0.01?'var(--text3)':diff>0?'var(--warning)':'var(--success)';
-        return`<div class="trend-bar-row" style="margin-bottom:2px;"><div class="trend-label">${env.icon} ${env.name}</div>
-          <div style="flex:1;font-size:10px;color:var(--text2);">${fmt(rec)} suggested</div>
-          <div class="trend-val" style="color:${lc};font-size:9px;">${label}</div></div>`;}).join('')}
-    </div></div>`;
-  document.getElementById('insights-content').innerHTML=html;
+  let html='';
+
+  // Fixed bills bar chart
+  if(fixed.length){
+    html+=`<div class="insight-card">
+      <div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo</div>
+      <div class="insight-body" style="margin-top:8px;">
+        ${fixed.map(env=>{const pct=Math.min(100,Math.round((env.balance/env.target)*100));const c=pct>=100?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
+          return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
+            <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
+            <div class="trend-val" style="font-size:9px;">${fmt(env.balance)}/${fmt(env.target)}</div></div>`;}).join('')}
+      </div></div>`;
+  }
+
+  // Variable spending
+  if(variable.length){
+    html+=`<div class="insight-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div class="insight-title" style="margin:0;">Variable Spending</div>
+        <div class="period-toggle">
+          <button class="period-btn${S.period===30?' active':''}" onclick="setPeriod(30,this)">30d</button>
+          <button class="period-btn${S.period===60?' active':''}" onclick="setPeriod(60,this)">60d</button>
+          <button class="period-btn${S.period===90?' active':''}" onclick="setPeriod(90,this)">90d</button>
+        </div>
+      </div>
+      <div class="insight-body">
+        ${variable.map(env=>{const spent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);const pct=env.target>0?Math.min(100,Math.round((spent/env.target)*100)):0;const c=pct>=100?'var(--danger)':pct>=75?'var(--warning)':'var(--success)';
+          return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
+            <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
+            <div class="trend-val">${fmt(spent)}</div></div>`;}).join('')}
+      </div></div>`;
+  }
+
+  // Funding suggestions — only show if there are meaningful diffs
+  const suggestions=S.envelopes.filter(env=>{const rec=Math.ceil(getAvg(env)*100)/100;return Math.abs(rec-env.target)>=1;});
+  if(suggestions.length){
+    html+=`<div class="insight-card">
+      <div class="insight-title">Funding Suggestions</div>
+      <div class="insight-body" style="margin-top:8px;">
+        ${suggestions.map(env=>{const rec=Math.ceil(getAvg(env)*100)/100;const diff=rec-env.target;
+          const label=diff>0?`+${fmt(diff)} suggested`:`${fmt(diff)} suggested`;
+          const lc=diff>0?'var(--warning)':'var(--success)';
+          return`<div class="trend-bar-row" style="margin-bottom:2px;"><div class="trend-label">${env.icon} ${env.name}</div>
+            <div style="flex:1;font-size:10px;color:var(--text2);">${fmt(rec)} suggested</div>
+            <div class="trend-val" style="color:${lc};font-size:9px;">${label}</div></div>`;}).join('')}
+      </div></div>`;
+  }
+
+  return html;
 }
 
 function render(){
@@ -1200,7 +1577,9 @@ function render(){
         <div style="font-size:11px;color:var(--text2);">Grand Total in Envelopes</div>
         <div style="font-size:22px;font-weight:600;color:var(--rose-light);">${fmt(grandTotal)}</div>
       </div>
-    </div>`;
+    </div>
+
+    <div style="margin-top:8px;">${renderInsights()}</div>`;
   document.getElementById('sections-container').innerHTML=html;
 }
 
