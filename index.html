@@ -222,8 +222,21 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .install-banner-text{font-size:12px;color:var(--text2);line-height:1.5;}
 .install-banner-text strong{display:block;font-size:13px;color:var(--cream);margin-bottom:2px;}
 .install-banner-actions{display:flex;gap:7px;flex-shrink:0;}
-.save-indicator{position:fixed;bottom:16px;right:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--success);opacity:0;transition:opacity .4s;z-index:300;}
+.save-indicator{position:fixed;bottom:80px;right:16px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:11px;color:var(--success);opacity:0;transition:opacity .4s;z-index:300;}
 .save-indicator.show{opacity:1;}
+
+.fab{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:18px;width:52px;height:52px;border-radius:50%;background:var(--rose-dim);border:1px solid var(--rose);color:var(--cream);font-size:24px;font-weight:300;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:350;box-shadow:0 4px 20px rgba(140,94,72,0.4);transition:transform .15s,background .15s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;line-height:1;}
+.fab:hover{background:var(--rose);transform:scale(1.05);}
+.fab.open{transform:rotate(45deg);}
+
+.fab-menu{position:fixed;bottom:calc(82px + env(safe-area-inset-bottom));right:18px;display:flex;flex-direction:column;gap:8px;z-index:349;align-items:flex-end;animation:fabMenuIn .18s ease;}
+@keyframes fabMenuIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.fab-item{display:flex;align-items:center;gap:9px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.fab-item-label{background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:7px 12px;font-size:12px;font-weight:500;color:var(--rose-light);white-space:nowrap;}
+.fab-item-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;border:1px solid var(--border2);}
+.fab-backdrop{position:fixed;inset:0;z-index:348;background:rgba(0,0,0,0.3);}
+
+.quick-modal-env-select{width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:9px 11px;color:var(--rose-light);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;appearance:none;margin-bottom:10px;}
 
 @media(max-width:600px){
   .summary-row{grid-template-columns:repeat(2,1fr);}
@@ -298,6 +311,27 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 </div>
 
 <div class="save-indicator" id="save-indicator">Saved</div>
+
+<div id="fab-backdrop" class="fab-backdrop" style="display:none;" onclick="closeFab()"></div>
+<div id="fab-menu" class="fab-menu" style="display:none;">
+  <div class="fab-item" onclick="closeFab();openQuickModal('income')">
+    <div class="fab-item-label">Log Income</div>
+    <div class="fab-item-icon" style="background:rgba(127,168,135,.12);border-color:rgba(127,168,135,.3);color:var(--success);">+$</div>
+  </div>
+  <div class="fab-item" onclick="closeFab();openQuickModal('fund')">
+    <div class="fab-item-label">Fund Envelope</div>
+    <div class="fab-item-icon" style="background:rgba(201,150,122,.12);border-color:var(--border2);color:var(--rose-light);">↓</div>
+  </div>
+  <div class="fab-item" onclick="closeFab();openQuickModal('spend')">
+    <div class="fab-item-label">Record Spend</div>
+    <div class="fab-item-icon" style="background:rgba(196,112,112,.12);border-color:rgba(196,112,112,.3);color:var(--danger);">-$</div>
+  </div>
+  <div class="fab-item" onclick="closeFab();openQuickModal('transfer')">
+    <div class="fab-item-label">Transfer</div>
+    <div class="fab-item-icon" style="background:rgba(122,159,196,.12);border-color:rgba(122,159,196,.3);color:var(--info);">⇄</div>
+  </div>
+</div>
+<button class="fab" id="fab-btn" onclick="toggleFab()">+</button>
 
 <div id="install-banner" style="display:none;" class="install-banner">
   <div class="install-banner-text">
@@ -476,6 +510,76 @@ function addIncome(type,amount,label){
 
 function closeMB(e){document.getElementById('modal-backdrop').style.display='none';S.modal=null;}
 function openModalEl(){document.getElementById('modal-backdrop').style.display='flex';}
+// ---- FAB ----
+let fabOpen=false;
+function toggleFab(){
+  fabOpen=!fabOpen;
+  document.getElementById('fab-menu').style.display=fabOpen?'flex':'none';
+  document.getElementById('fab-backdrop').style.display=fabOpen?'block':'none';
+  document.getElementById('fab-btn').classList.toggle('open',fabOpen);
+}
+function closeFab(){
+  fabOpen=false;
+  document.getElementById('fab-menu').style.display='none';
+  document.getElementById('fab-backdrop').style.display='none';
+  document.getElementById('fab-btn').classList.remove('open');
+}
+function openQuickModal(type){
+  S.modal={type:'quick',qtype:type,envId:null,amount:'',desc:'',label:'',itype:'other'};
+  renderModal();
+  document.getElementById('modal-backdrop').style.display='flex';
+}
+function doQuickIncome(){
+  const amt=parseFloat(document.getElementById('q-amt').value);
+  const lbl=document.getElementById('q-label').value||'Income';
+  const itype=document.getElementById('q-itype').value;
+  if(isNaN(amt)||amt<=0)return;
+  S.unallocated+=amt;
+  S.incomeLog.unshift({type:itype,amount:amt,label:lbl,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function doQuickSpend(){
+  const m=S.modal;
+  const allEnvs=[...S.envelopes,...S.savings];
+  const envId=m.envId||S.envelopes[0]?.id;
+  const env=allEnvs.find(e=>e.id===envId);
+  const amt=parseFloat(document.getElementById('q-amt').value);
+  const desc=document.getElementById('q-desc').value||'Purchase';
+  if(!env||isNaN(amt)||amt<=0)return;
+  env.balance-=amt;
+  env.transactions.unshift({desc,amount:-amt,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function doQuickFund(){
+  const m=S.modal;
+  const allEnvs=[...S.envelopes,...S.savings];
+  const envId=m.envId||S.envelopes[0]?.id;
+  const env=allEnvs.find(e=>e.id===envId);
+  const amt=parseFloat(document.getElementById('q-amt').value);
+  const src=m.src||'unallocated';
+  if(!env||isNaN(amt)||amt<=0)return;
+  if(src==='unallocated'){
+    if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
+    S.unallocated-=amt;
+  }
+  env.balance+=amt;
+  env.transactions.unshift({desc:src==='direct'?'Added Directly':'Funded',amount:amt,date:fmtShort(today())});
+  closeMB();saveState();render();
+}
+function doQuickTransfer(){
+  const allEnvs=[...S.envelopes,...S.savings];
+  const fromId=parseInt(document.getElementById('q-from').value);
+  const toId=parseInt(document.getElementById('q-to').value);
+  const amt=parseFloat(document.getElementById('q-amt').value);
+  const fromEnv=allEnvs.find(e=>e.id===fromId);
+  const toEnv=allEnvs.find(e=>e.id===toId);
+  if(!fromEnv||!toEnv||isNaN(amt)||amt<=0)return;
+  const date=fmtShort(today());
+  fromEnv.balance-=amt;fromEnv.transactions.unshift({desc:`Transfer to ${toEnv.name}`,amount:-amt,date});
+  toEnv.balance+=amt;toEnv.transactions.unshift({desc:`Transfer from ${fromEnv.name}`,amount:amt,date});
+  closeMB();saveState();render();
+}
+
 function openPaySettingsModal(){
   if(!S.paySchedule){
     S.paySchedule={biweeklyEnabled:true,anchorDate:'2026-04-17',retainerEnabled:true,retainerDays:[1,20]};
@@ -529,7 +633,7 @@ function savePaySettings(){
 }
 function openAddModal(){S.modal={type:'add',env:{name:'',icon:'🛒',etype:'variable',target:'',dueDay:''}};renderModal();openModalEl();}
 function openSpendModal(id){S.modal={type:'spend',id,amount:'',desc:''};renderModal();openModalEl();}
-function openFundModal(id){S.modal={type:'fund',id,dir:'add'};renderModal();openModalEl();}
+function openFundModal(id){S.modal={type:'fund',id,dir:'add',src:'unallocated'};renderModal();openModalEl();}
 function openEditModal(id){
   const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===id);
   S.modal={type:'edit',id,name:env.name,icon:env.icon,balance:env.balance,target:env.target,dueDay:env.dueDay!=null?env.dueDay:''};
@@ -679,6 +783,7 @@ function renderModal(){
   } else if(m.type==='fund'){
     const env=S.envelopes.find(e=>e.id===m.id);const rec=Math.ceil(getAvg(env)*100)/100;const needed=Math.max(0,env.target-env.balance);
     const dir=m.dir||'add';
+    const src=m.src||'unallocated';
     inner.innerHTML=`<div class="modal-title">Fund — ${env.icon} ${env.name}</div>
       <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
         <div><div class="si-label">Balance</div><div class="si-val">${fmt(env.balance)}</div></div>
@@ -694,8 +799,15 @@ function renderModal(){
           <button id="fund-sub-btn" class="btn${dir==='sub'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('sub',${env.balance},${S.unallocated})">− Remove</button>
         </div>
         <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})"/>
-        <div style="font-size:9px;color:var(--text3);margin-top:4px;">${dir==='add'?'Pulls from unallocated into this envelope':'Returns from this envelope back to unallocated'}</div>
       </div>
+      ${dir==='add'?`<div class="form-group">
+        <label class="form-label">Source</label>
+        <div style="display:flex;gap:6px;">
+          <button id="src-unalloc-btn" class="btn${src==='unallocated'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='unallocated';renderModal()">From Unallocated</button>
+          <button id="src-direct-btn" class="btn${src==='direct'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='direct';renderModal()">Add Directly</button>
+        </div>
+        <div style="font-size:9px;color:var(--text3);margin-top:5px;">${src==='unallocated'?'Use money already in your unallocated balance.':'Skip the income log — add straight to this envelope.'}</div>
+      </div>`:''}
       <div class="modal-actions">
         <button class="btn btn-primary" style="flex:1" onclick="doFund()">Confirm</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
@@ -750,6 +862,102 @@ function renderModal(){
         <button class="btn btn-danger btn-sm" onclick="doDeleteTx()">Delete</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
       </div>`;
+  } else if(m.type==='quick'){
+    const allEnvs=[...S.envelopes,...S.savings];
+    const spendEnvs=S.envelopes;
+    const fundEnvs=S.envelopes;
+    const qtype=m.qtype;
+
+    const envOpts=(envList,selected)=>envList.map(e=>`<option value="${e.id}"${e.id===selected?' selected':''}>${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('');
+    const allOpts=(selected)=>{
+      const fixed=S.envelopes.filter(e=>e.type==='fixed');
+      const variable=S.envelopes.filter(e=>e.type==='variable');
+      let o='';
+      if(fixed.length)o+=`<optgroup label="Fixed Bills">${envOpts(fixed,selected)}</optgroup>`;
+      if(variable.length)o+=`<optgroup label="Variable Spending">${envOpts(variable,selected)}</optgroup>`;
+      if(S.savings.length)o+=`<optgroup label="Savings Goals">${S.savings.map(e=>`<option value="${e.id}"${e.id===selected?' selected':''}>${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('')}</optgroup>`;
+      return o;
+    };
+
+    if(qtype==='income'){
+      inner.innerHTML=`<div class="modal-title">Log Income</div>
+        <div class="form-group"><label class="form-label">Amount ($)</label>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+        <div class="form-group"><label class="form-label">Label</label>
+          <input class="form-input" id="q-label" placeholder="e.g. Biweekly Paycheck" value="${m.label}"/></div>
+        <div class="form-group"><label class="form-label">Type</label>
+          <select class="form-select" id="q-itype">
+            <option value="biweekly"${m.itype==='biweekly'?' selected':''}>Biweekly Paycheck</option>
+            <option value="retainer"${m.itype==='retainer'?' selected':''}>Retainer</option>
+            <option value="other"${m.itype==='other'?' selected':''}>Other</option>
+          </select></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" style="flex:1" onclick="doQuickIncome()">Add Income</button>
+          <button class="btn" onclick="closeMB()">Cancel</button>
+        </div>`;
+    } else if(qtype==='spend'){
+      const selEnv=spendEnvs.find(e=>e.id===m.envId)||spendEnvs[0];
+      const after=selEnv?selEnv.balance-(parseFloat(m.amount)||0):0;
+      inner.innerHTML=`<div class="modal-title">Record Spend</div>
+        <div class="form-group"><label class="form-label">Envelope</label>
+          <select class="quick-modal-env-select" onchange="S.modal.envId=parseInt(this.value);renderModal()">
+            ${allOpts(m.envId||spendEnvs[0]?.id)}
+          </select></div>
+        ${selEnv?`<div class="sib" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:10px;">
+          <div><div class="si-label">Current</div><div class="si-val">${fmt(selEnv.balance)}</div></div>
+          <div style="text-align:right"><div class="si-label">After</div><div class="si-val${after<0?' warn':''}">${fmt(after)}</div></div>
+        </div></div>`:''}
+        <div class="form-group"><label class="form-label">Amount ($)</label>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount}" oninput="S.modal.amount=this.value;renderModal()"/></div>
+        <div class="form-group"><label class="form-label">Description</label>
+          <input class="form-input" id="q-desc" placeholder="e.g. HEB" value="${m.desc}" oninput="S.modal.desc=this.value"/></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" style="flex:1" onclick="doQuickSpend()">Record</button>
+          <button class="btn" onclick="closeMB()">Cancel</button>
+        </div>`;
+    } else if(qtype==='fund'){
+      const selEnv=allEnvs.find(e=>e.id===m.envId)||S.envelopes[0];
+      const src=m.src||'unallocated';
+      inner.innerHTML=`<div class="modal-title">Fund Envelope</div>
+        <div class="form-group"><label class="form-label">Envelope</label>
+          <select class="quick-modal-env-select" onchange="S.modal.envId=parseInt(this.value);renderModal()">
+            ${allOpts(m.envId||S.envelopes[0]?.id)}
+          </select></div>
+        ${selEnv?`<div class="sib" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:10px;">
+          <div><div class="si-label">Balance</div><div class="si-val">${fmt(selEnv.balance)}</div></div>
+          <div style="text-align:right"><div class="si-label">Unallocated</div><div class="si-val" style="color:${S.unallocated<0?'var(--danger)':'var(--rose-light)'}">${fmt(S.unallocated)}</div></div>
+        </div></div>`:''}
+        <div class="form-group"><label class="form-label">Source</label>
+          <div style="display:flex;gap:6px;">
+            <button class="btn${src==='unallocated'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='unallocated';renderModal()">From Unallocated</button>
+            <button class="btn${src==='direct'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='direct';renderModal()">Add Directly</button>
+          </div>
+          <div style="font-size:9px;color:var(--text3);margin-top:5px;">${src==='direct'?'Skip the income log — add straight to this envelope.':'Use money already in your unallocated balance.'}</div>
+        </div>
+        <div class="form-group"><label class="form-label">Amount ($)</label>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" style="flex:1" onclick="doQuickFund()">Fund</button>
+          <button class="btn" onclick="closeMB()">Cancel</button>
+        </div>`;
+    } else if(qtype==='transfer'){
+      const fromEnv=allEnvs.find(e=>e.id===m.envId)||allEnvs[0];
+      inner.innerHTML=`<div class="modal-title">Transfer</div>
+        <div class="form-group"><label class="form-label">From</label>
+          <select class="quick-modal-env-select" id="q-from" onchange="S.modal.envId=parseInt(this.value);renderModal()">
+            ${allOpts(m.envId||allEnvs[0]?.id)}
+          </select></div>
+        <div class="form-group"><label class="form-label">To</label>
+          <select class="quick-modal-env-select" id="q-to">
+            ${allEnvs.filter(e=>e.id!==(m.envId||allEnvs[0]?.id)).map(e=>`<option value="${e.id}">${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('')}
+          </select></div>
+        <div class="form-group"><label class="form-label">Amount ($)</label>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" style="flex:1" onclick="doQuickTransfer()">Transfer</button>
+          <button class="btn" onclick="closeMB()">Cancel</button>
+        </div>`;
+    }
   } else if(m.type==='editincome'){
     const ITYPES=['biweekly','retainer','other'];
     inner.innerHTML=`<div class="modal-title">Edit Income Entry</div>
@@ -991,10 +1199,14 @@ function doFund(){
   const amt=parseFloat(document.getElementById('fu-a').value);
   if(isNaN(amt)||amt<=0)return;
   const dir=m.dir||'add';
+  const src=m.src||'unallocated';
   if(dir==='add'){
-    if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
-    env.balance+=amt;S.unallocated-=amt;
-    env.transactions.unshift({desc:'Funded',amount:amt,date:fmtShort(today())});
+    if(src==='unallocated'){
+      if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
+      S.unallocated-=amt;
+    }
+    env.balance+=amt;
+    env.transactions.unshift({desc:src==='direct'?'Add Directly':'Funded',amount:amt,date:fmtShort(today())});
   } else {
     if(amt>env.balance){alert('Not enough balance in this envelope.');return;}
     env.balance-=amt;S.unallocated+=amt;
