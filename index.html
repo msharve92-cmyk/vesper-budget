@@ -15,19 +15,19 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 :root{
-  --bg:#0f0d0e;--bg2:#181416;--bg3:#211c1e;--bg4:#2a2325;
-  --rose:#c9967a;--rose-light:#e8bfaa;--rose-dim:#8c5e48;
+  --bg:#080607;--bg2:#100d0e;--bg3:#181214;--bg4:#211819;
+  --rose:#c9967a;--rose-light:#e8bfaa;--rose-dim:#8c5e48;--rose-mid:#d4a98a;
   --nude:#a08272;--nude-light:#c4a898;
-  --cream:#f0e4d8;--text:#f0e4d8;--text2:#b8a498;--text3:#7a6860;
+  --cream:#f0e4d8;--text:#e8bfaa;--text2:#c4a898;--text3:#7a6056;
   --success:#7fa887;--warning:#c4a04a;--danger:#c47070;--info:#7a9fc4;
-  --border:rgba(201,150,122,0.12);--border2:rgba(201,150,122,0.22);
+  --border:rgba(201,150,122,0.14);--border2:rgba(201,150,122,0.28);
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
-.topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:11px 18px;padding-top:calc(11px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar{background:var(--bg2);border-bottom:1px solid var(--border2);padding:11px 18px;padding-top:calc(11px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
 .logo{font-family:'DM Serif Display',serif;font-size:19px;color:var(--rose-light);}
 .logo span{color:var(--text3);font-size:11px;font-family:'DM Sans',sans-serif;font-weight:300;margin-left:6px;}
-.nav-tabs{display:flex;gap:3px;background:var(--bg3);border-radius:10px;padding:3px;}
+.nav-tabs{display:flex;gap:3px;background:var(--bg3);border-radius:10px;padding:3px;border:1px solid var(--border);}
 .nav-tab{padding:6px 13px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--text3);font-weight:500;border:none;background:transparent;transition:all .2s;font-family:'DM Sans',sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .nav-tab.active{background:var(--bg4);color:var(--rose-light);border:1px solid var(--border2);}
 .hdr-right{text-align:right;}
@@ -38,22 +38,22 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 
 .payday-banner{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:8px;flex-wrap:wrap;}
 .pay-slot{flex:1;min-width:115px;background:var(--bg3);border-radius:9px;padding:9px 12px;border:1px solid var(--border);}
-.pay-slot.next{border-color:var(--rose-dim);}
+.pay-slot.next{border-color:var(--rose-dim);background:rgba(140,94,72,0.12);}
 .ps-label{font-size:9px;text-transform:uppercase;letter-spacing:.9px;color:var(--text3);margin-bottom:3px;}
-.ps-date{font-size:13px;font-weight:600;color:var(--cream);}
+.ps-date{font-size:13px;font-weight:600;color:var(--rose-mid);}
 .pay-slot.next .ps-date{color:var(--rose-light);}
 .ps-days{font-size:10px;color:var(--nude-light);margin-top:2px;}
 
 .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
 .sum-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 13px;}
 .sum-card .lbl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px;}
-.sum-card .val{font-size:18px;font-weight:600;color:var(--cream);}
+.sum-card .val{font-size:18px;font-weight:600;color:var(--rose-mid);}
 .sum-card .val.rose{color:var(--rose);}
 .sum-card .val.info{color:var(--info);}
 .sum-card .sub{font-size:9px;color:var(--text3);margin-top:2px;}
 
 .savings-pool-row{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
-.spr-val{font-size:16px;font-weight:600;color:var(--info);}
+.spr-val{font-size:16px;font-weight:600;color:var(--rose-light);}
 .spr-sub{font-size:10px;color:var(--text3);margin-top:2px;}
 .spr-right{display:flex;gap:6px;align-items:center;}
 
@@ -67,25 +67,26 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .btn-sm{padding:3px 9px;font-size:11px;}
 
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;margin-top:17px;}
-.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--nude);font-weight:600;}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:var(--rose-mid);font-weight:600;}
 .funded-count{font-size:10px;color:var(--text3);}
-.envelope-grid{display:flex;flex-direction:column;gap:7px;}
+.envelope-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
 
-.envelope-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:12px 14px;transition:border-color .2s;}
-.envelope-card.expanded{border-color:var(--rose-dim);}
-.env-header{display:flex;align-items:center;gap:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
-.env-icon{width:33px;height:33px;border-radius:8px;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.envelope-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:13px 13px 11px;transition:border-color .2s;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.envelope-card.expanded{border-color:var(--rose-dim);grid-column:1/-1;}
+.env-header{display:flex;flex-direction:column;gap:7px;}
+.env-header-top{display:flex;align-items:center;justify-content:space-between;}
+.env-icon{width:32px;height:32px;border-radius:8px;background:var(--bg4);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
 .env-info{flex:1;min-width:0;}
-.env-name{font-weight:500;font-size:13px;color:var(--cream);}
-.env-meta{font-size:10px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.env-name{font-weight:500;font-size:13px;color:var(--rose-light);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.env-meta{font-size:9px;color:var(--text3);margin-top:2px;display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .env-right{text-align:right;flex-shrink:0;}
-.env-balance{font-size:16px;font-weight:600;}
-.env-of{font-size:10px;color:var(--text3);}
+.env-balance{font-size:18px;font-weight:600;line-height:1;}
+.env-of{font-size:10px;color:var(--text3);margin-top:2px;}
 .status-badge{display:inline-flex;align-items:center;padding:2px 6px;border-radius:5px;font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-top:3px;}
 .badge-funded{background:rgba(127,168,135,.15);color:var(--success);border:1px solid rgba(127,168,135,.25);}
 .badge-ontrack{background:rgba(196,160,74,.15);color:var(--warning);border:1px solid rgba(196,160,74,.25);}
 .badge-behind{background:rgba(196,112,112,.15);color:var(--danger);border:1px solid rgba(196,112,112,.25);}
-.progress-bar{height:3px;background:var(--bg4);border-radius:2px;margin-top:9px;overflow:hidden;}
+.progress-bar{height:3px;background:var(--bg4);border-radius:2px;margin-top:8px;overflow:hidden;}
 .progress-fill{height:100%;border-radius:2px;transition:width .4s;}
 .env-expanded{margin-top:11px;padding-top:11px;border-top:1px solid var(--border);display:none;}
 .env-expanded.show{display:block;}
@@ -129,7 +130,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .savings-note{font-size:10px;color:var(--info);background:rgba(122,159,196,.08);border:1px solid rgba(122,159,196,.16);border-radius:8px;padding:7px 11px;margin-bottom:9px;}
 
 .income-panel{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:14px 15px;margin-bottom:13px;}
-.income-panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--nude);font-weight:600;margin-bottom:10px;}
+.income-panel-title{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--rose-mid);font-weight:600;margin-bottom:10px;}
 .quick-btn{border:1px solid var(--border2);background:var(--bg3);color:var(--rose-light);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'DM Sans',sans-serif;font-weight:500;transition:all .2s;white-space:nowrap;}
 .quick-btn:hover{background:var(--bg4);}
 .income-log-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
@@ -142,9 +143,12 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .il-type.retainer{background:rgba(122,159,196,.12);color:var(--info);}
 .il-type.other{background:rgba(127,168,135,.12);color:var(--success);}
 
-.insight-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:14px;margin-bottom:9px;}
-.insight-title{font-size:13px;font-weight:600;color:var(--cream);margin-bottom:4px;}
-.insight-body{font-size:12px;color:var(--text2);line-height:1.6;}
+.insight-card{background:var(--bg2);border:1px solid var(--border);border-radius:11px;padding:0;margin-bottom:9px;overflow:hidden;}
+.insight-card-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.insight-title{font-size:13px;font-weight:600;color:var(--rose-light);}
+.insight-chevron{font-size:12px;color:var(--text3);transition:transform .2s;user-select:none;}
+.insight-chevron.open{transform:rotate(180deg);}
+.insight-body{font-size:12px;color:var(--text2);line-height:1.6;padding:0 14px 12px;}
 .trend-bar-row{display:flex;align-items:center;gap:9px;margin-top:7px;}
 .trend-label{font-size:10px;color:var(--text2);width:100px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .trend-bar-bg{flex:1;height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;}
@@ -255,7 +259,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
         <div class="sum-card"><div class="lbl">Unallocated</div><div class="val rose" id="sc-u">$0.00</div><div class="sub">ready to assign</div></div>
         <div class="sum-card"><div class="lbl">Fixed Bills</div><div class="val" id="sc-b">$0.00</div><div class="sub">total monthly</div></div>
         <div class="sum-card"><div class="lbl">Variable Spent</div><div class="val rose" id="sc-s">$0.00</div><div class="sub">this month</div></div>
-        <div class="sum-card"><div class="lbl">Savings Pool</div><div class="val info" id="sc-sp">$0.00</div><div class="sub">separate from budget</div></div>
+        <div class="sum-card"><div class="lbl">Savings Pool</div><div class="val rose" id="sc-sp">$0.00</div><div class="sub">separate from budget</div></div>
       </div>
       <div class="savings-pool-row">
         <div><div class="spr-val" id="pool-val">$0.00</div><div class="spr-sub">Savings Pool — not part of your spending budget</div></div>
@@ -1018,7 +1022,7 @@ function doSavSpend(){
 function toggleExpand(id){S.expandedId=S.expandedId===id?null:id;render();}
 
 function renderPaydayBanner(){
-  const pays=getPaydays(4);
+  const pays=getPaydays(1);
   return`<div class="payday-banner">${pays.map((p,i)=>`
     <div class="pay-slot${i===0?' next':''}">
       <div class="ps-label">${i===0?'Next':'Upcoming'} — ${p.label}</div>
@@ -1037,15 +1041,14 @@ function renderEnvCard(env){
     </div>`).join('')||`<div style="font-size:10px;color:var(--text3);padding:5px 0;">No transactions yet.</div>`;
 
   if(isVar){
-    // Variable: just show balance, no target/status/progress bar
-    return`<div class="envelope-card${exp?' expanded':''}">
-      <div class="env-header" onclick="toggleExpand(${env.id})">
-        <div class="env-icon">${env.icon}</div>
-        <div class="env-info"><div class="env-name">${env.name}</div><div class="env-meta"><span style="font-size:9px;color:var(--text3);">variable</span></div></div>
-        <div class="env-right">
+    return`<div class="envelope-card${exp?' expanded':''}" onclick="toggleExpand(${env.id})">
+      <div class="env-header">
+        <div class="env-header-top">
+          <div class="env-icon">${env.icon}</div>
           <div class="env-balance" style="color:${env.balance<0?'var(--danger)':'var(--cream)'}">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
-          <div class="env-of" style="color:var(--text3);font-size:10px;">available</div>
         </div>
+        <div class="env-name">${env.name}</div>
+        <div class="env-meta"><span style="font-size:9px;color:var(--text3);">available</span></div>
       </div>
       <div class="env-expanded${exp?' show':''}">
         <div class="detail-grid" style="grid-template-columns:repeat(2,1fr);">
@@ -1056,38 +1059,46 @@ function renderEnvCard(env){
         <div class="action-row">
           <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
           <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
-          <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄ Transfer</button>
-          <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
+          <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄</button>
+          <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏</button>
         </div>
       </div>
     </div>`;
   }
 
-  // Fixed: full status/progress/due date logic
+  // Fixed
   const status=getStatus(env);
   const pct=Math.min(100,Math.round((env.balance/env.target)*100));
   const bClass=status==='funded'?'badge-funded':status==='ontrack'?'badge-ontrack':'badge-behind';
   const bText=status==='funded'?'Funded':status==='ontrack'?'On Track':'Behind';
   const barColor=status==='funded'?'var(--success)':status==='ontrack'?'var(--warning)':'var(--danger)';
   const needed=Math.max(0,env.target-env.balance);
-  let metaChips='';
+  let dueMeta='';
   if(env.dueDay){
-    const dl=getDaysLeft(env.dueDay);const urgent=dl<=5;
-    metaChips+=`<span class="due-chip${urgent?' urgent':''}">Due ${dl===0?'today':dl+'d'}</span>`;
-    const cp=getNextPayBeforeDue(env.dueDay);
-    if(cp)metaChips+=`<span class="cover-chip cover-ok">Covered by ${cp.type==='biweekly'?'paycheck':'retainer'} ${fmtShort(cp.date)}</span>`;
-    else metaChips+=`<span class="cover-chip cover-warn">No pay before due</span>`;
+    const dl=getDaysLeft(env.dueDay);
+    dueMeta=`<span class="due-chip${dl<=5?' urgent':''}">Due ${dl===0?'today':dl+'d'}</span>`;
   }
   let wkly='';
-  if(env.dueDay&&needed>0){const dl=getDaysLeft(env.dueDay);const wk=Math.ceil((needed/Math.max(dl,1))*7);wkly=`<div><div class="dl">Weekly needed</div><div class="dv">${fmt(wk)}/wk</div></div>`;}
-  return`<div class="envelope-card${exp?' expanded':''}">
-    <div class="env-header" onclick="toggleExpand(${env.id})">
-      <div class="env-icon">${env.icon}</div>
-      <div class="env-info"><div class="env-name">${env.name}</div><div class="env-meta">${metaChips}</div></div>
-      <div class="env-right">
-        <div class="env-balance" style="color:${env.balance<0?'var(--danger)':'var(--cream)'}">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
-        <div class="env-of">of ${fmt(env.target)}</div>
-        <div><span class="status-badge ${bClass}">${bText}</span></div>
+  if(env.dueDay&&needed>0){const dl=getDaysLeft(env.dueDay);const wk=Math.ceil((needed/Math.max(dl,1))*7);wkly=`<div><div class="dl">Weekly</div><div class="dv">${fmt(wk)}/wk</div></div>`;}
+  let coverChip='';
+  if(exp&&env.dueDay){
+    const cp=getNextPayBeforeDue(env.dueDay);
+    coverChip=cp?`<span class="cover-chip cover-ok">Covered by ${cp.type==='biweekly'?'paycheck':'retainer'} ${fmtShort(cp.date)}</span>`:`<span class="cover-chip cover-warn">No pay before due</span>`;
+  }
+  return`<div class="envelope-card${exp?' expanded':''}" onclick="toggleExpand(${env.id})">
+    <div class="env-header">
+      <div class="env-header-top">
+        <div class="env-icon">${env.icon}</div>
+        <div style="text-align:right;">
+          <div class="env-balance" style="color:${env.balance<0?'var(--danger)':'var(--cream)'}">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
+          <div class="env-of">of ${fmt(env.target)}</div>
+        </div>
+      </div>
+      <div class="env-name">${env.name}</div>
+      <div class="env-meta">
+        ${dueMeta}
+        <span class="status-badge ${bClass}">${bText}</span>
+        ${exp?coverChip:''}
       </div>
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${barColor};"></div></div>
@@ -1102,8 +1113,8 @@ function renderEnvCard(env){
       <div class="action-row">
         <button class="btn btn-primary btn-sm" onclick="openFundModal(${env.id});event.stopPropagation()">+ Fund</button>
         <button class="btn btn-sm" onclick="openSpendModal(${env.id});event.stopPropagation()">- Spend</button>
-        <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄ Transfer</button>
-        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏ Edit</button>
+        <button class="btn btn-sm" onclick="openTransferModal(${env.id});event.stopPropagation()">⇄</button>
+        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${env.id});event.stopPropagation()">✏</button>
       </div>
     </div>
   </div>`;
@@ -1117,14 +1128,18 @@ function renderSavCard(sav){
       <div><div class="tx-name">${t.desc}</div><div class="tx-date">${t.date}</div></div>
       <div class="tx-amount${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
     </div>`).join('')||`<div style="font-size:10px;color:var(--text3);padding:5px 0;">No activity yet.</div>`;
-  return`<div class="envelope-card${exp?' expanded':''}">
-    <div class="env-header" onclick="toggleExpand(${sav.id})">
-      <div class="env-icon">${sav.icon}</div>
-      <div class="env-info"><div class="env-name">${sav.name}</div><div class="env-meta"><span style="font-size:9px;color:var(--info);">savings goal</span></div></div>
-      <div class="env-right">
-        <div class="env-balance" style="color:var(--info)">${fmt(sav.balance)}</div>
-        <div class="env-of">goal: ${fmt(sav.target)}</div>
-        <div><span class="status-badge" style="background:rgba(122,159,196,.12);color:var(--info);border:1px solid rgba(122,159,196,.25);">${pct}% of goal</span></div>
+  return`<div class="envelope-card${exp?' expanded':''}" onclick="toggleExpand(${sav.id})">
+    <div class="env-header">
+      <div class="env-header-top">
+        <div class="env-icon">${sav.icon}</div>
+        <div style="text-align:right;">
+          <div class="env-balance" style="color:var(--info)">${fmt(sav.balance)}</div>
+          <div class="env-of">of ${fmt(sav.target)}</div>
+        </div>
+      </div>
+      <div class="env-name">${sav.name}</div>
+      <div class="env-meta">
+        <span style="font-size:9px;color:var(--info);">${pct}% saved</span>
       </div>
     </div>
     <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:var(--info);"></div></div>
@@ -1139,8 +1154,8 @@ function renderSavCard(sav){
       <div class="action-row">
         <button class="btn btn-info btn-sm" onclick="openSavFundModal(${sav.id});event.stopPropagation()">+ Deposit</button>
         <button class="btn btn-sm" onclick="openSavSpendModal(${sav.id});event.stopPropagation()">- Withdraw</button>
-        <button class="btn btn-sm" onclick="openTransferModal(${sav.id});event.stopPropagation()">⇄ Transfer</button>
-        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${sav.id});event.stopPropagation()">✏ Edit</button>
+        <button class="btn btn-sm" onclick="openTransferModal(${sav.id});event.stopPropagation()">⇄</button>
+        <button class="btn btn-sm" style="margin-left:auto" onclick="openEditModal(${sav.id});event.stopPropagation()">✏</button>
       </div>
     </div>
   </div>`;
@@ -1149,6 +1164,7 @@ function renderSavCard(sav){
 // ---- TRANSACTION LOG ----
 let txFilter='all';
 let txSearch='';
+let insightOpen={bills:true,variable:false,suggestions:false};
 
 function getAllTransactions(){
   const all=[];
@@ -1471,56 +1487,76 @@ function renderIncomePanel(){
     </div>`;
 }
 
+function toggleInsight(key){
+  insightOpen[key]=!insightOpen[key];
+  render();
+}
+
 function renderInsights(){
   const fixed=S.envelopes.filter(e=>e.type==='fixed');
   const variable=S.envelopes.filter(e=>e.type==='variable');
   const billsTotal=fixed.reduce((a,e)=>a+e.target,0);
   let html='';
 
-  // Fixed bills bar chart
+  // Fixed bills
   if(fixed.length){
+    const open=insightOpen.bills;
     html+=`<div class="insight-card">
-      <div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo</div>
-      <div class="insight-body" style="margin-top:8px;">
+      <div class="insight-card-header" onclick="toggleInsight('bills')">
+        <div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo</div>
+        <span class="insight-chevron${open?' open':''}">▼</span>
+      </div>
+      ${open?`<div class="insight-body">
         ${fixed.map(env=>{const pct=Math.min(100,Math.round((env.balance/env.target)*100));const c=pct>=100?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
           return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
             <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
             <div class="trend-val" style="font-size:9px;">${fmt(env.balance)}/${fmt(env.target)}</div></div>`;}).join('')}
-      </div></div>`;
+      </div>`:''}
+    </div>`;
   }
 
   // Variable spending
   if(variable.length){
+    const open=insightOpen.variable;
     html+=`<div class="insight-card">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <div class="insight-title" style="margin:0;">Variable Spending</div>
-        <div class="period-toggle">
-          <button class="period-btn${S.period===30?' active':''}" onclick="setPeriod(30,this)">30d</button>
-          <button class="period-btn${S.period===60?' active':''}" onclick="setPeriod(60,this)">60d</button>
-          <button class="period-btn${S.period===90?' active':''}" onclick="setPeriod(90,this)">90d</button>
+      <div class="insight-card-header" onclick="toggleInsight('variable')">
+        <div class="insight-title">Variable Spending</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          ${open?`<div class="period-toggle" onclick="event.stopPropagation()">
+            <button class="period-btn${S.period===30?' active':''}" onclick="setPeriod(30,this)">30d</button>
+            <button class="period-btn${S.period===60?' active':''}" onclick="setPeriod(60,this)">60d</button>
+            <button class="period-btn${S.period===90?' active':''}" onclick="setPeriod(90,this)">90d</button>
+          </div>`:''}
+          <span class="insight-chevron${open?' open':''}">▼</span>
         </div>
       </div>
-      <div class="insight-body">
+      ${open?`<div class="insight-body">
         ${variable.map(env=>{const spent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);const pct=env.target>0?Math.min(100,Math.round((spent/env.target)*100)):0;const c=pct>=100?'var(--danger)':pct>=75?'var(--warning)':'var(--success)';
           return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
             <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
             <div class="trend-val">${fmt(spent)}</div></div>`;}).join('')}
-      </div></div>`;
+      </div>`:''}
+    </div>`;
   }
 
-  // Funding suggestions — only show if there are meaningful diffs
+  // Funding suggestions
   const suggestions=S.envelopes.filter(env=>{const rec=Math.ceil(getAvg(env)*100)/100;return Math.abs(rec-env.target)>=1;});
   if(suggestions.length){
+    const open=insightOpen.suggestions;
     html+=`<div class="insight-card">
-      <div class="insight-title">Funding Suggestions</div>
-      <div class="insight-body" style="margin-top:8px;">
+      <div class="insight-card-header" onclick="toggleInsight('suggestions')">
+        <div class="insight-title">Funding Suggestions</div>
+        <span class="insight-chevron${open?' open':''}">▼</span>
+      </div>
+      ${open?`<div class="insight-body">
         ${suggestions.map(env=>{const rec=Math.ceil(getAvg(env)*100)/100;const diff=rec-env.target;
           const label=diff>0?`+${fmt(diff)} suggested`:`${fmt(diff)} suggested`;
           const lc=diff>0?'var(--warning)':'var(--success)';
           return`<div class="trend-bar-row" style="margin-bottom:2px;"><div class="trend-label">${env.icon} ${env.name}</div>
             <div style="flex:1;font-size:10px;color:var(--text2);">${fmt(rec)} suggested</div>
             <div class="trend-val" style="color:${lc};font-size:9px;">${label}</div></div>`;}).join('')}
-      </div></div>`;
+      </div>`:''}
+    </div>`;
   }
 
   return html;
@@ -1574,7 +1610,7 @@ function render(){
         </div>
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between;">
-        <div style="font-size:11px;color:var(--text2);">Grand Total in Envelopes</div>
+        <div style="font-size:11px;color:var(--rose-mid);">Grand Total in Envelopes</div>
         <div style="font-size:22px;font-weight:600;color:var(--rose-light);">${fmt(grandTotal)}</div>
       </div>
     </div>
