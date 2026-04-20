@@ -2237,9 +2237,9 @@ function render(){
   const fnd=envs=>envs.filter(e=>e.type==='fixed'&&getStatus(e)==='funded').length;
   const fixedCount=envs=>envs.filter(e=>e.type==='fixed').length;
   let html='';
-  const fixedTotal=fixed.reduce((a,e)=>a+Math.max(0,e.balance),0);
+  const fixedTotal=fixed.reduce((a,e)=>a+e.balance,0);
   const fixedTarget=fixed.reduce((a,e)=>a+e.target,0);
-  const variableTotal=variable.reduce((a,e)=>a+Math.max(0,e.balance),0);
+  const variableTotal=variable.reduce((a,e)=>a+e.balance,0);
   const savingsTotal=S.savings.reduce((a,e)=>a+e.balance,0);
   if(fixed.length)html+=`<div class="section-header"><div class="section-title">Fixed Bills</div><div class="funded-count" style="text-align:right;">${fnd(fixed)}/${fixedCount(fixed)} funded &nbsp;·&nbsp; <span style="color:var(--cream);font-weight:500;">${fmt(fixedTotal)}</span> <span style="color:var(--text3);">/ ${fmt(fixedTarget)}</span></div></div><div class="envelope-grid">${fixed.map(renderEnvCard).join('')}</div>`;
   if(variable.length)html+=`<div class="section-header"><div class="section-title">Variable Spending</div><div class="funded-count"><span style="color:var(--cream);font-weight:500;">${fmt(variableTotal)}</span> <span style="color:var(--text3);">available</span></div></div><div class="envelope-grid">${variable.map(renderEnvCard).join('')}</div>`;
@@ -2273,7 +2273,7 @@ function render(){
       </div>
       <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:baseline;justify-content:space-between;">
         <div style="font-size:11px;color:var(--rose-mid);">Grand Total in Envelopes</div>
-        <div style="font-size:22px;font-weight:600;color:var(--rose-light);">${fmt(grandTotal)}</div>
+        <div style="font-size:22px;font-weight:600;color:${grandTotal<0?'var(--danger)':'var(--rose-light)'};">${fmt(grandTotal)}</div>
       </div>
     </div>
 
