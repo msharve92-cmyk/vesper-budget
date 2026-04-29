@@ -37,10 +37,10 @@
   --radius-sm:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:15px;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:15px;}
 
 /* ── Topbar ── */
-.topbar{background:#0a0a0a;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.topbar{background:#0a0a0a;padding:16px 20px;padding-top:calc(16px + env(safe-area-inset-top));display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .logo{font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--rose);}
 .logo span{color:var(--text3);font-size:12px;font-family:'DM Sans',sans-serif;font-weight:400;margin-left:6px;}
 .hdr-right{text-align:right;}
@@ -48,12 +48,12 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 .hdr-right .lbl{font-size:11px;color:var(--text3);}
 
 /* ── Main ── */
-.main{padding:0 0 calc(100px + env(safe-area-inset-bottom));max-width:860px;margin:0 auto;width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
-.tab-content{display:none;}.tab-content.active{display:block;}
+.main{height:100%;display:flex;flex-direction:column;max-width:860px;margin:0 auto;width:100%;}
+.tab-content{display:none;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(90px + env(safe-area-inset-bottom));}.tab-content.active{display:block;}
 .nav-tab{display:none;}
 
 /* ── Calc keyboard ── */
-.calc-keyboard{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;border-top:2px solid var(--border);z-index:180;padding:0 0 calc(env(safe-area-inset-bottom));}
+.calc-keyboard{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;border-top:2px solid var(--border);z-index:350;padding:0 0 calc(env(safe-area-inset-bottom));}
 .calc-chips{display:flex;gap:8px;padding:10px 16px 8px;overflow-x:auto;}
 .calc-chip{background:var(--card2);border:2px solid var(--border);border-radius:20px;padding:7px 14px;font-size:12px;font-weight:700;color:var(--text2);white-space:nowrap;cursor:pointer;font-family:'Nunito',sans-serif;touch-action:manipulation;flex-shrink:0;}
 .calc-chip.suggested{border-color:var(--rose);color:var(--rose);}
@@ -363,7 +363,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 </head>
 <body>
 
-<div id="app">
+<div id="app" style="height:100%;display:flex;flex-direction:column;overflow:hidden;">
   <div class="topbar">
     <div class="logo">vesper <span>budget</span></div>
 
@@ -387,7 +387,7 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
     </div>
 
     <div class="tab-content" id="tab-session">
-      <div id="session-panel" style="padding-bottom:320px;overflow-y:auto;-webkit-overflow-scrolling:touch;"></div>
+      <div id="session-panel" style="padding:20px 20px 340px;"></div>
     </div>
 
     <div class="tab-content" id="tab-calendar">
@@ -430,7 +430,10 @@ html,body{height:100%;font-family:'DM Sans',sans-serif;background:var(--bg);colo
 </div>
 
 <div id="calc-keyboard" class="calc-keyboard" style="display:none;">
-  <div class="calc-chips" id="calc-chips"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px 4px;">
+    <div class="calc-chips" id="calc-chips" style="padding:0;flex:1;"></div>
+    <div id="calc-remaining" style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;color:var(--text2);flex-shrink:0;padding-left:10px;white-space:nowrap;"></div>
+  </div>
   <div class="calc-display">
     <div class="calc-display-expr" id="calc-expr"></div>
     <div class="calc-display-val" id="calc-display-val">$0.00</div>
@@ -1025,8 +1028,10 @@ function renderSessionAllocation(){
   const variableRows=BS.allocs.filter(a=>a.type==='variable');
   const savingsRows=BS.allocs.filter(a=>a.type==='savings');
 
-  const buildRow=(a,i)=>{
-    const idx=BS.allocs.indexOf(a);
+  // Build all rows with explicit global indices
+  const allRowsWithIdx=BS.allocs.map((a,idx)=>({a,idx}));
+
+  const buildRow=({a,idx})=>{
     const amt=parseFloat(a.amount||0);
     const hasSuggestion=a.suggested>0;
     return`
@@ -1055,9 +1060,9 @@ function renderSessionAllocation(){
       </div>
     </div>
 
-    ${S.envelopes.filter(e=>e.type==='fixed').length?`<div class="session-section-title">Fixed Bills</div>${BS.allocs.filter(a=>a.type==='fixed').map(buildRow).join('')}`:''}
-    ${BS.allocs.filter(a=>a.type==='variable').length?`<div class="session-section-title">Variable Spending</div>${BS.allocs.filter(a=>a.type==='variable').map(buildRow).join('')}`:''}
-    ${BS.allocs.filter(a=>a.type==='savings').length?`<div class="session-section-title">Savings Goals</div>${BS.allocs.filter(a=>a.type==='savings').map(buildRow).join('')}`:''}
+    ${allRowsWithIdx.filter(({a})=>a.type==='fixed').length?`<div class="session-section-title">Fixed Bills</div>${allRowsWithIdx.filter(({a})=>a.type==='fixed').map(buildRow).join('')}`:''}
+    ${allRowsWithIdx.filter(({a})=>a.type==='variable').length?`<div class="session-section-title">Variable Spending</div>${allRowsWithIdx.filter(({a})=>a.type==='variable').map(buildRow).join('')}`:''}
+    ${allRowsWithIdx.filter(({a})=>a.type==='savings').length?`<div class="session-section-title">Savings Goals</div>${allRowsWithIdx.filter(({a})=>a.type==='savings').map(buildRow).join('')}`:''}
 
     <div class="session-confirm-bar">
       <div class="session-confirm-status${done?' ready':over?' over':''}">
@@ -1085,16 +1090,31 @@ function adjustSessionAlloc(idx,dir){
 // ---- CALC KEYBOARD ----
 let calcState={activeIdx:null,value:'0',op:null,opValue:null};
 function openCalcKeyboard(idx){
-  calcState={activeIdx:idx,value:String(parseFloat(BS.allocs[idx].amount||0).toFixed(2)),op:null,opValue:null};
+  if(!BS||!BS.allocs||!BS.allocs[idx])return;
+  // Start display at 0, not the existing amount
+  calcState={activeIdx:idx,value:'0',op:null,opValue:null};
   updateCalcDisplay();
   updateCalcChips(idx);
   document.getElementById('calc-keyboard').style.display='block';
   document.getElementById('bottom-nav').style.display='none';
+  const sp=document.getElementById('session-panel');
+  if(sp)sp.style.pointerEvents='none';
+  const ts=document.getElementById('tab-session');
+  if(ts)ts.style.overflow='hidden';
 }
 function closeCalcKeyboard(){
   calcState={activeIdx:null,value:'0',op:null,opValue:null};
   document.getElementById('calc-keyboard').style.display='none';
   document.getElementById('bottom-nav').style.display='flex';
+  const sp=document.getElementById('session-panel');
+  if(sp)sp.style.pointerEvents='';
+  const ts=document.getElementById('tab-session');
+  if(ts)ts.style.overflow='';
+}
+function getSessionRemaining(){
+  if(!BS)return 0;
+  const allocated=BS.allocs.reduce((a,e)=>a+(parseFloat(e.amount)||0),0);
+  return Math.round((BS.total-allocated)*100)/100;
 }
 function updateCalcDisplay(){
   const val=parseFloat(calcState.value)||0;
@@ -1103,28 +1123,39 @@ function updateCalcDisplay(){
   document.getElementById('calc-expr').textContent=expr;
   document.getElementById('calc-op-add').className='calc-op'+(calcState.op==='+'?' active-op':'');
   document.getElementById('calc-op-sub').className='calc-op'+(calcState.op==='-'?' active-op':'');
+  // Update remaining
+  const remEl=document.getElementById('calc-remaining');
+  if(remEl){
+    const rem=getSessionRemaining();
+    remEl.textContent=`${fmt(rem)} remaining`;
+    remEl.style.color=rem<0?'var(--danger)':rem===0?'var(--success)':'var(--text2)';
+  }
 }
 function updateCalcChips(idx){
   const a=BS.allocs[idx];
   const prev=parseFloat(a.amount)||0;
   const suggested=parseFloat(a.suggested)||0;
+  const rem=getSessionRemaining();
   const chips=document.getElementById('calc-chips');
   chips.innerHTML=`
-    <div class="calc-chip" onclick="calcSetVal(0)">empty · $0</div>
-    ${prev>0?`<div class="calc-chip" onclick="calcSetVal(${prev})">previous · ${fmt(prev)}</div>`:''}
-    ${suggested>0?`<div class="calc-chip suggested" onclick="calcSetVal(${suggested})">✦ suggested · ${fmt(suggested)}</div>`:''}
-    ${a.target>0?`<div class="calc-chip" onclick="calcSetVal(${a.target})">target · ${fmt(a.target)}</div>`:''}
+    <div class="calc-chip" onclick="calcSetVal(0)">$0 · empty</div>
+    ${suggested>0?`<div class="calc-chip suggested" onclick="calcSetVal(${suggested})">✦ ${fmt(suggested)} suggested</div>`:''}
+    ${a.target>0&&a.target!==suggested?`<div class="calc-chip" onclick="calcSetVal(${a.target})">${fmt(a.target)} target</div>`:''}
+    ${rem>0?`<div class="calc-chip" onclick="calcSetVal(${Math.round((prev+rem)*100)/100})">${fmt(rem)} remaining</div>`:''}
+    ${prev>0?`<div class="calc-chip" onclick="calcSetVal(${prev})">${fmt(prev)} current</div>`:''}
   `;
 }
 function calcSetVal(v){
-  calcState.value=String(parseFloat(v).toFixed(2));
+  const n=parseFloat(v)||0;
+  calcState.value=n===0?'0':String(n);
   calcState.op=null;calcState.opValue=null;
   updateCalcDisplay();
 }
 function calcKey(k){
-  if(calcState.value==='0'&&k!=='.')calcState.value=k;
-  else if(k==='.'&&calcState.value.includes('.'))return;
-  else calcState.value=(calcState.value||'')+k;
+  const v=calcState.value;
+  if(v==='0'||v===''){ calcState.value=(k==='.'?'0.':k); }
+  else if(k==='.'&&v.includes('.'))return;
+  else calcState.value=v+k;
   updateCalcDisplay();
 }
 function calcDel(){
@@ -1156,7 +1187,6 @@ function calcConfirm(){
   closeCalcKeyboard();
   renderSessionAllocation();
 }
-
 function confirmSession(){
   if(!BS)return;
   // Set unallocated to 0 — all money is being assigned
