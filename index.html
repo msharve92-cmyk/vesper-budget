@@ -1909,7 +1909,7 @@ function doSavSpend(){
   const amt=parseFloat(document.getElementById('savspend-amt').value);
   const desc=document.getElementById('savspend-desc').value;
   if(isNaN(amt)||amt<=0)return;
-  sav.balance-=amt;S.unallocated+=amt;
+  sav.balance-=amt;
   sav.transactions.unshift({desc:desc||'Withdrawal',amount:-amt,date:fmtShort(today()),ts:Date.now()});
   closeMB();saveState();render();
 }
