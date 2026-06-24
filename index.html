@@ -186,9 +186,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 .cover-chip{font-size:11px;padding:3px 8px;border-radius:50px;font-weight:700;}
 .cover-ok{color:var(--success);}
 .cover-warn{color:var(--danger);}
-.bill-paid-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:4px 10px;border-radius:50px;font-weight:800;text-transform:uppercase;cursor:pointer;touch-action:manipulation;font-family:'Nunito',sans-serif;}
-.bill-paid-chip.paid{background:rgba(94,201,126,.2);color:var(--success);}
-.bill-paid-chip.unpaid{background:rgba(255,255,255,.08);color:var(--text3);}
+
 
 /* ── Buttons ── */
 .btn{border:2px solid var(--border2);background:var(--card);color:var(--rose);padding:10px 18px;border-radius:50px;cursor:pointer;font-size:13px;font-family:'Nunito',sans-serif;font-weight:800;transition:all .2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
@@ -382,18 +380,17 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
       <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:16px 20px 20px;">
         <button class="btn" onclick="openAddModal()">+ New Envelope</button>
         <button class="btn btn-primary" onclick="openBudgetSession()">💰 Budget Session</button>
-        <button class="btn" onclick="openNewMonthModal()">✓ Clear Bills</button>
         <button class="btn" onclick="openPaySettingsModal()">⚙</button>
       </div>
     </div>
 
+    <div id="history-panel" style="display:none;"></div>
+    <div id="calendar-panel" style="display:none;"></div>
     <div class="tab-content" id="tab-session">
       <div id="session-panel" style="padding:20px 20px 340px;"></div>
     </div>
 
-    <div class="tab-content" id="tab-calendar">
-      <div id="calendar-panel" style="padding-top:16px;"></div>
-    </div>
+
 
     <div class="tab-content" id="tab-income">
       <div style="padding:20px;"><div id="income-panel-full"></div></div>
@@ -467,10 +464,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
     <span class="bnav-icon">⊞</span>
     <span class="bnav-label">Dashboard</span>
   </button>
-  <button class="bottom-nav-item" id="bnav-calendar" onclick="showTab('calendar',this)" data-tab="calendar">
-    <span class="bnav-icon">📅</span>
-    <span class="bnav-label">Calendar</span>
-  </button>
+
   <button class="bottom-nav-item bnav-center" onclick="toggleFab()">
     <span class="bnav-fab">+</span>
   </button>
@@ -588,8 +582,8 @@ function getNextPayBeforeDue(dueDay){
 
 // --- DEFAULT STATE ---
 const DEFAULT_STATE = {
-  unallocated:0, savingsPool:0, period:30, expandedId:null, nextId:20, modal:null,
-  incomeLog:[], billPaid:{},
+  unallocated:0, period:30, expandedId:null, nextId:20, modal:null,
+  incomeLog:[],
   paySchedule:{
     biweeklyEnabled:true,
     anchorDate:'2026-04-17',
@@ -667,7 +661,6 @@ function showTab(name,btn){
   if(bnavBtn)bnavBtn.classList.add('active');
   if(name==='income')renderIncomePanel();
   if(name==='transactions')renderTransactions();
-  if(name==='calendar')renderCalendar();
 }
 function setPeriod(p,btn){S.period=p;document.querySelectorAll('.period-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render();}
 
@@ -781,24 +774,9 @@ function getSpendingAlerts(){
 }
 
 // ---- BILL PAID TRACKER ----
-// billPaid is stored in S as {envId_month: true} e.g. '5_2026-04'
-function getBillPaidKey(envId){
-  const t=today();
-  return`${envId}_${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}`;
-}
-function toggleBillPaid(envId){
-  if(!S.billPaid)S.billPaid={};
-  const key=getBillPaidKey(envId);
-  S.billPaid[key]=!S.billPaid[key];
-  saveState();render();
-}
-function isBillPaid(envId){
-  if(!S.billPaid)return false;
-  return!!S.billPaid[getBillPaidKey(envId)];
-}
 
-// ---- HISTORY ----
-let historyOpenMonths={};
+
+
 function renderHistory(){
   const container=document.getElementById('history-panel');
   // Group all transactions by month
@@ -899,18 +877,7 @@ function renderHistory(){
 }
 
 // ---- MONTHLY RESET ----
-function openNewMonthModal(){
-  S.modal={type:'newmonth'};
-  renderModal();
-  document.getElementById('modal-backdrop').style.display='flex';
-}
-function doNewMonth(){
-  S.billPaid={};
-  closeMB();saveState();render();
-}
 
-// ---- BUDGET SESSION ----
-let BS = null; // active budget session state
 
 function openBudgetSession(){
   BS = null;
@@ -1237,7 +1204,6 @@ function doReset(){
   fresh.savings=[];
   fresh.incomeLog=[];
   fresh.unallocated=0;
-  fresh.savingsPool=0;
   // keep their pay schedule if they already set it
   fresh.paySchedule=S.paySchedule;
   Object.assign(S,fresh);
@@ -1332,24 +1298,6 @@ function renderModal(){
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
         <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">Starting fresh or sharing with a friend?</div>
         <button class="btn btn-danger btn-sm" onclick="closeMB();openResetModal()">Reset to blank</button>
-      </div>`;
-  } else if(m.type==='newmonth'){
-    const fixed=S.envelopes.filter(e=>e.type==='fixed');
-    setModalTitle('Clear Bill Status');
-    inner.innerHTML=`      <div style="font-size:12px;color:var(--text2);margin-bottom:14px;">Resets the "Mark Paid" status on all your fixed bills. Use this at the start of each month so you can track payments fresh.</div>
-      <div class="reset-month-section">
-        <div class="reset-month-title">Bills that will be cleared</div>
-        ${fixed.map(e=>{
-          const paid=isBillPaid(e.id);
-          return`<div class="reset-month-row">
-            <span>${e.icon} ${e.name}</span>
-            <span style="color:${paid?'var(--success)':'var(--text3)'};">${paid?'✓ Paid → Unpaid':'Already unpaid'}</span>
-          </div>`;
-        }).join('')}
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-primary" style="flex:1" onclick="doNewMonth()">Clear All</button>
-        <button class="btn" onclick="closeMB()">Cancel</button>
       </div>`;
   } else if(m.type==='reset'){
     setModalTitle('Reset to Blank');
@@ -1980,7 +1928,6 @@ function renderDetailBody(env){
     const status=getStatus(env);
     const barColor=status==='funded'?'var(--success)':status==='ontrack'?'var(--warning)':'var(--danger)';
     const needed=Math.max(0,env.target-env.balance);
-    const paid=isBillPaid(env.id);
     heroSub=`target: ${fmt(env.target)}`;
     if(env.dueDay){const dl=getDaysLeft(env.dueDay);heroSub+=` · due in ${dl}d`;}
     progressHtml=`<div class="detail-progress-wrap"><div class="detail-progress-bar"><div class="detail-progress-fill" style="width:${pct}%;background:${barColor};"></div></div></div>`;
@@ -1992,7 +1939,6 @@ function renderDetailBody(env){
     const cp=env.dueDay?getNextPayBeforeDue(env.dueDay):null;
     chipsHtml=`<div class="detail-chip-row">
       <span class="status-badge ${status==='funded'?'badge-funded':status==='ontrack'?'badge-ontrack':'badge-behind'}">${status==='funded'?'Funded':status==='ontrack'?'On Track':'Behind'}</span>
-      <span class="bill-paid-chip ${paid?'paid':'unpaid'}" onclick="toggleBillPaid(${env.id});openDetail(${env.id})">${paid?'✓ Paid':'Mark Paid'}</span>
     </div>`;
     actionsHtml=`<div class="detail-actions">
       <button class="detail-action-btn" onclick="closeDetail();openFundModal(${env.id})">
@@ -2072,11 +2018,10 @@ function renderEnvCard(env){
     const status=getStatus(env);
     const pct=Math.min(100,Math.round((env.balance/env.target)*100));
     const barColor=status==='funded'?'var(--success)':status==='ontrack'?'var(--warning)':'var(--danger)';
-    const paid=isBillPaid(env.id);
     return`<div class="envelope-card" onclick="openDetail(${env.id})">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
         <span style="font-size:18px;line-height:1;">${env.icon}</span>
-        <span style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${env.name}${paid?'<span style="color:var(--success);font-size:9px;margin-left:3px;">✓</span>':''}</span>
+        <span style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${env.name}</span>
       </div>
       <div style="display:flex;align-items:flex-end;justify-content:space-between;">
         <div style="font-size:10px;color:var(--text3);">${fmt(env.target)}</div>
@@ -2115,7 +2060,6 @@ function renderSavCard(sav){
 let txFilter='all';
 let txSearch='';
 function toggleSection(key){sectionOpen[key]=!sectionOpen[key];render();}
-let insightOpen={bills:false,variable:false,suggestions:false};
 let sectionOpen={fixed:false,variable:true,savings:true};
 
 function getAllTransactions(){
@@ -2441,12 +2385,6 @@ function renderIncomePanel(){
   document.getElementById('income-panel-full').innerHTML=`
     <div class="income-panel">
       <div class="income-panel-title">Log Income</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-        <button class="quick-btn" onclick="addIncome('biweekly',null,'Biweekly Paycheck')">+ Paycheck</button>
-        <button class="quick-btn" onclick="addIncome('retainer',null,'Retainer — 1st')">+ Retainer — 1st</button>
-        <button class="quick-btn" onclick="addIncome('retainer',null,'Retainer — 20th')">+ Retainer — 20th</button>
-      </div>
-      <div style="font-size:9px;color:var(--text3);margin-bottom:8px;">Enter amount first, then tap a button — or log custom income below.</div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" style="width:130px;"/>
         <input class="finput" id="custom-inc-lbl" placeholder="Label (optional)" style="flex:1;min-width:140px;"/>
@@ -2466,81 +2404,6 @@ function renderIncomePanel(){
           <div style="font-size:10px;color:${i===0?'var(--rose)':'var(--text3)'};">${i===0?'Next':'in '+daysUntil(p.date)+'d'}</div>
         </div>`).join('')}
     </div>`;
-}
-
-function toggleInsight(key){
-  insightOpen[key]=!insightOpen[key];
-  render();
-}
-
-function renderInsights(){
-  const fixed=S.envelopes.filter(e=>e.type==='fixed');
-  const variable=S.envelopes.filter(e=>e.type==='variable');
-  const billsTotal=fixed.reduce((a,e)=>a+e.target,0);
-  let html='';
-
-  // Fixed bills
-  if(fixed.length){
-    const open=insightOpen.bills;
-    html+=`<div class="insight-card">
-      <div class="insight-card-header" onclick="toggleInsight('bills')">
-        <div class="insight-title">Fixed Bills — ${fmt(billsTotal)}/mo</div>
-        <span class="insight-chevron${open?' open':''}">▼</span>
-      </div>
-      ${open?`<div class="insight-body">
-        ${fixed.map(env=>{const pct=Math.min(100,Math.round((env.balance/env.target)*100));const c=pct>=100?'var(--success)':pct>=50?'var(--warning)':'var(--danger)';
-          return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
-            <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
-            <div class="trend-val" style="font-size:9px;">${fmt(env.balance)}/${fmt(env.target)}</div></div>`;}).join('')}
-      </div>`:''}
-    </div>`;
-  }
-
-  // Variable spending
-  if(variable.length){
-    const open=insightOpen.variable;
-    html+=`<div class="insight-card">
-      <div class="insight-card-header" onclick="toggleInsight('variable')">
-        <div class="insight-title">Variable Spending</div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          ${open?`<div class="period-toggle" onclick="event.stopPropagation()">
-            <button class="period-btn${S.period===30?' active':''}" onclick="setPeriod(30,this)">30d</button>
-            <button class="period-btn${S.period===60?' active':''}" onclick="setPeriod(60,this)">60d</button>
-            <button class="period-btn${S.period===90?' active':''}" onclick="setPeriod(90,this)">90d</button>
-          </div>`:''}
-          <span class="insight-chevron${open?' open':''}">▼</span>
-        </div>
-      </div>
-      ${open?`<div class="insight-body">
-        ${variable.map(env=>{const spent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);const pct=env.target>0?Math.min(100,Math.round((spent/env.target)*100)):0;const c=pct>=100?'var(--danger)':pct>=75?'var(--warning)':'var(--success)';
-          return`<div class="trend-bar-row"><div class="trend-label">${env.icon} ${env.name}</div>
-            <div class="trend-bar-bg"><div class="trend-bar-fill" style="width:${pct}%;background:${c};"></div></div>
-            <div class="trend-val">${fmt(spent)}</div></div>`;}).join('')}
-      </div>`:''}
-    </div>`;
-  }
-
-  // Funding suggestions
-  const suggestions=S.envelopes.filter(env=>{const rec=Math.ceil(getAvg(env)*100)/100;return Math.abs(rec-env.target)>=1;});
-  if(suggestions.length){
-    const open=insightOpen.suggestions;
-    html+=`<div class="insight-card">
-      <div class="insight-card-header" onclick="toggleInsight('suggestions')">
-        <div class="insight-title">Funding Suggestions</div>
-        <span class="insight-chevron${open?' open':''}">▼</span>
-      </div>
-      ${open?`<div class="insight-body">
-        ${suggestions.map(env=>{const rec=Math.ceil(getAvg(env)*100)/100;const diff=rec-env.target;
-          const label=diff>0?`+${fmt(diff)} suggested`:`${fmt(diff)} suggested`;
-          const lc=diff>0?'var(--warning)':'var(--success)';
-          return`<div class="trend-bar-row" style="margin-bottom:2px;"><div class="trend-label">${env.icon} ${env.name}</div>
-            <div style="flex:1;font-size:10px;color:var(--text2);">${fmt(rec)} suggested</div>
-            <div class="trend-val" style="color:${lc};font-size:9px;">${label}</div></div>`;}).join('')}
-      </div>`:''}
-    </div>`;
-  }
-
-  return html;
 }
 
 function render(){
@@ -2609,8 +2472,7 @@ function render(){
         <div style="font-size:13px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;">Savings</div>
         <div style="font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:var(--info);">${fmt(savingsTotal)}</div>
       </div>
-    </div>
-    <div style="padding:4px 20px 0;">${renderInsights()}</div>`;
+    </div>`;
 
   document.getElementById('sections-container').innerHTML=html;
 }
