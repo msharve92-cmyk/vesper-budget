@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -652,7 +652,7 @@ function addIncome(type,amount,label){
   const lbl=label||document.getElementById('custom-inc-lbl').value||'Income';
   if(isNaN(amt)||amt<=0)return;
   S.unallocated+=amt;
-  S.incomeLog.unshift({type,amount:amt,label:lbl,date:fmtShort(today())});
+  S.incomeLog.unshift({type,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
   if(!amount){document.getElementById('custom-inc-amt').value='';document.getElementById('custom-inc-lbl').value='';}
   saveState();render();
   if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();
@@ -687,7 +687,7 @@ function doQuickIncome(){
   const itype=document.getElementById('q-itype').value;
   if(isNaN(amt)||amt<=0)return;
   S.unallocated+=amt;
-  S.incomeLog.unshift({type:itype,amount:amt,label:lbl,date:fmtShort(today())});
+  S.incomeLog.unshift({type:itype,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
   closeMB();saveState();render();
 }
 function doQuickSpend(){
@@ -699,7 +699,7 @@ function doQuickSpend(){
   const desc=document.getElementById('q-desc').value||'Purchase';
   if(!env||isNaN(amt)||amt<=0)return;
   env.balance-=amt;
-  env.transactions.unshift({desc,amount:-amt,date:fmtShort(today())});
+  env.transactions.unshift({desc,amount:-amt,date:fmtShort(today()),ts:Date.now()});
   closeMB();saveState();render();
 }
 function doQuickFund(){
@@ -941,17 +941,17 @@ function startSessionAllocation(){
       suggested=env.target;
       note='monthly bill';
     }
-    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'fixed',suggested,amount:0,urgent,note,target:env.target});
+    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'fixed',suggested,amount:env.balance,urgent,note,target:env.target});
   });
 
   // Variable — start at 0, suggest target
   S.envelopes.filter(e=>e.type==='variable').forEach(env=>{
-    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'variable',suggested:env.target||0,amount:0,urgent:false,note:'variable spending',target:env.target});
+    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'variable',suggested:env.target||0,amount:env.balance,urgent:false,note:'variable spending',target:env.target});
   });
 
   // Savings — start at 0, suggest 0
   S.savings.forEach(sav=>{
-    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:0,urgent:false,note:'savings goal',target:sav.target});
+    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:sav.balance,urgent:false,note:'savings goal',target:sav.target});
   });
 
   BS={total:amt,allocs};
@@ -1763,6 +1763,12 @@ function doDeleteIncome(){
   closeMB();saveState();render();
   renderIncomePanel();
 }
+function deleteIncome(idx){
+  S.unallocated-=S.incomeLog[idx].amount;
+  S.incomeLog.splice(idx,1);
+  saveState();render();
+  renderIncomePanel();
+}
 function updateSpendPreview(bal){
   const amt=parseFloat(document.getElementById('spend-amt').value)||0;
   const after=bal-amt;
@@ -2047,20 +2053,15 @@ function getAllTransactions(){
   const all=[];
   S.envelopes.forEach(env=>{
     env.transactions.forEach((t,i)=>{
-      all.push({envId:env.id,txIdx:i,icon:env.icon,envName:env.name,envType:env.type,desc:t.desc,amount:t.amount,date:t.date});
+      all.push({envId:env.id,txIdx:i,icon:env.icon,envName:env.name,envType:env.type,desc:t.desc,amount:t.amount,date:t.date,ts:t.ts||0});
     });
   });
   S.savings.forEach(sav=>{
     sav.transactions.forEach((t,i)=>{
-      all.push({envId:sav.id,txIdx:i,icon:sav.icon,envName:sav.name,envType:'savings',desc:t.desc,amount:t.amount,date:t.date});
+      all.push({envId:sav.id,txIdx:i,icon:sav.icon,envName:sav.name,envType:'savings',desc:t.desc,amount:t.amount,date:t.date,ts:t.ts||0});
     });
   });
-  all.sort((a,b)=>{
-    // Use stored timestamp if available, otherwise parse date string
-    const ta=a.ts||(()=>{const d=new Date(a.date+' 2026');return isNaN(d)?0:d.getTime();})();
-    const tb=b.ts||(()=>{const d=new Date(b.date+' 2026');return isNaN(d)?0:d.getTime();})();
-    return tb-ta;
-  });
+  all.sort((a,b)=>(b.ts||0)-(a.ts||0));
   return all;
 }
 
@@ -2079,52 +2080,48 @@ function renderTransactions(){
   else if(txFilter==='funding') all=all.filter(t=>t.amount>0&&t.envType!=='savings');
   else if(txFilter==='savings') all=all.filter(t=>t.envType==='savings');
 
-  const search=document.getElementById('txlog-search-input');
-  const q=search?search.value.toLowerCase():txSearch;
-  if(q) all=all.filter(t=>t.desc.toLowerCase().includes(q)||t.envName.toLowerCase().includes(q));
+  const search=txSearch.toLowerCase();
+  if(search) all=all.filter(t=>t.desc.toLowerCase().includes(search)||t.envName.toLowerCase().includes(search));
 
-  const totalSpent=all.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);
-  const totalIn=all.filter(t=>t.amount>0).reduce((a,t)=>a+t.amount,0);
+  // Group by date
+  const groups={};
+  all.forEach(t=>{
+    const key=t.date||'Unknown';
+    if(!groups[key])groups[key]=[];
+    groups[key].push(t);
+  });
 
-  const rows=all.length?all.map(t=>`
-    <div class="txlog-row">
-      <div class="txlog-icon">${t.icon}</div>
-      <div class="txlog-info">
-        <div class="txlog-desc">${t.desc}</div>
-        <div class="txlog-env">${t.envName}</div>
-      </div>
-      <div class="txlog-right">
-        <div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
-        <div class="txlog-date">${t.date}</div>
-      </div>
-      <div class="txlog-actions">
-        <button class="btn btn-sm" style="color:var(--text3);font-size:10px;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
-      </div>
-    </div>`).join(''):`<div class="txlog-empty">No transactions found.</div>`;
-
-  container.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-weight:600;">All Transactions</div>
-      <div style="font-size:11px;color:var(--text3);">${all.length} entries</div>
-    </div>
+  let html=`
     <div class="txlog-filters">
       <button class="txlog-filter-btn${txFilter==='all'?' active':''}" onclick="setTxFilter('all',this)">All</button>
       <button class="txlog-filter-btn${txFilter==='spending'?' active':''}" onclick="setTxFilter('spending',this)">Spending</button>
       <button class="txlog-filter-btn${txFilter==='funding'?' active':''}" onclick="setTxFilter('funding',this)">Funding</button>
       <button class="txlog-filter-btn${txFilter==='savings'?' active':''}" onclick="setTxFilter('savings',this)">Savings</button>
-      <input class="txlog-search" id="txlog-search-input" placeholder="Search..." value="${q}" oninput="txSearch=this.value;renderTransactions()"/>
     </div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;">
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:3px;">Total Out</div>
-        <div style="font-size:16px;font-weight:600;color:var(--danger);">${fmt(totalSpent)}</div>
-      </div>
-      <div style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;">
-        <div style="font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:3px;">Total In</div>
-        <div style="font-size:16px;font-weight:600;color:var(--success);">${fmt(totalIn)}</div>
-      </div>
-    </div>
-    <div class="txlog-group">${rows}</div>`;
+    <input class="txlog-search" id="txlog-search-input" placeholder="Search..." value="${txSearch}" oninput="txSearch=this.value;renderTransactions()" style="width:100%;margin-bottom:14px;"/>`;
+
+  if(!all.length){
+    html+=`<div class="txlog-empty">No transactions found.</div>`;
+  } else {
+    Object.entries(groups).forEach(([date,txs])=>{
+      html+=`<div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;color:var(--text3);margin:16px 0 8px;">${date}</div>`;
+      txs.forEach(t=>{
+        html+=`<div class="txlog-row">
+          <div class="txlog-icon">${t.icon}</div>
+          <div class="txlog-info">
+            <div class="txlog-desc">${t.desc}</div>
+            <div class="txlog-env">${t.envName}</div>
+          </div>
+          <div class="txlog-right">
+            <div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
+          </div>
+          <button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
+        </div>`;
+      });
+    });
+  }
+
+  container.innerHTML=html;
 }
 
 function openEditTxModal(envId,txIdx){
@@ -2361,6 +2358,7 @@ function renderIncomePanel(){
       <div style="display:flex;align-items:center;gap:8px;">
         <div class="il-amt">+${fmt(l.amount)}</div>
         <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;color:var(--text3);" onclick="openEditIncomeModal(${i})">✏</button>
+        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;color:var(--danger);" onclick="deleteIncome(${i})">✕</button>
       </div>
     </div>`).join(''):`<div style="font-size:11px;color:var(--text3);padding:8px 0;">No income logged yet.</div>`;
   document.getElementById('income-panel-full').innerHTML=`
