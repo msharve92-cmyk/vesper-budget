@@ -423,7 +423,8 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
     <div class="calc-ops">
       <button class="calc-op" id="calc-op-add" onclick="calcOp('+')">+</button>
       <button class="calc-op" id="calc-op-sub" onclick="calcOp('-')">−</button>
-      <button class="calc-op" onclick="calcConfirm()" style="height:120px;background:var(--rose);color:#000;font-size:14px;font-weight:900;">SET</button>
+      <button class="calc-op" onclick="calcConfirm()" style="height:80px;background:var(--rose);color:#000;font-size:14px;font-weight:900;">SET</button>
+      <button class="calc-op" onclick="closeCalcKeyboard()" style="height:60px;background:var(--card2);color:var(--text3);font-size:12px;font-weight:700;">✕</button>
     </div>
     <div class="calc-nums">
       <button class="calc-num" onclick="calcKey('7')">7</button>
@@ -990,7 +991,10 @@ function renderSessionAllocation(){
   panel.innerHTML=`
     <div class="session-header">
       <div class="session-header-title">Allocate Funds</div>
-      <div class="session-header-sub">Adjust each envelope. Every dollar must be assigned.</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
+        <div class="session-header-sub">Adjust each envelope. Every dollar must be assigned.</div>
+        <button class="btn btn-sm" onclick="clearAllEnvelopes()" style="flex-shrink:0;margin-left:10px;color:var(--danger);border-color:rgba(196,112,112,.3);">🗑 Clear All</button>
+      </div>
       <div class="session-balance-row">
         <div>
           <div class="session-balance-label">Remaining to assign</div>
@@ -1130,6 +1134,12 @@ function calcConfirm(){
   closeCalcKeyboard();
   renderSessionAllocation();
 }
+function clearAllEnvelopes(){
+  if(!BS)return;
+  BS.allocs.forEach(a=>{ a.amount=0; });
+  renderSessionAllocation();
+}
+
 function confirmSession(){
   if(!BS)return;
   S.unallocated=0;
