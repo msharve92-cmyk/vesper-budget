@@ -2084,54 +2084,43 @@ function setTxFilter(f,btn){
 
 function renderTransactions(){
   const container=document.getElementById('transactions-panel');
-  let all=getAllTransactions();
-
-  if(txFilter==='spending') all=all.filter(t=>t.amount<0&&t.envType!=='savings');
-  else if(txFilter==='funding') all=all.filter(t=>t.amount>0&&t.envType!=='savings');
-  else if(txFilter==='savings') all=all.filter(t=>t.envType==='savings');
-
-  const search=txSearch.toLowerCase();
-  if(search) all=all.filter(t=>t.desc.toLowerCase().includes(search)||t.envName.toLowerCase().includes(search));
-
-  // Group by date
-  const groups={};
-  all.forEach(t=>{
-    const key=t.date||'Unknown';
-    if(!groups[key])groups[key]=[];
-    groups[key].push(t);
-  });
-
-  let html=`
+  container.innerHTML=`
     <div class="txlog-filters">
       <button class="txlog-filter-btn${txFilter==='all'?' active':''}" onclick="setTxFilter('all',this)">All</button>
       <button class="txlog-filter-btn${txFilter==='spending'?' active':''}" onclick="setTxFilter('spending',this)">Spending</button>
       <button class="txlog-filter-btn${txFilter==='funding'?' active':''}" onclick="setTxFilter('funding',this)">Funding</button>
       <button class="txlog-filter-btn${txFilter==='savings'?' active':''}" onclick="setTxFilter('savings',this)">Savings</button>
     </div>
-    <input class="txlog-search" id="txlog-search-input" placeholder="Search..." value="${txSearch}" oninput="txSearch=this.value;renderTransactions()" style="width:100%;margin-bottom:14px;"/>`;
+    <input class="txlog-search" id="txlog-search-input" placeholder="Search..." value="${txSearch}" oninput="txSearch=this.value;renderTransactionsRows()" style="width:100%;margin-bottom:14px;"/>
+    <div id="txlog-rows"></div>`;
+  renderTransactionsRows();
+}
 
-  if(!all.length){
-    html+=`<div class="txlog-empty">No transactions found.</div>`;
-  } else {
-    Object.entries(groups).forEach(([date,txs])=>{
-      html+=`<div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;color:var(--text3);margin:16px 0 8px;">${date}</div>`;
-      txs.forEach(t=>{
-        html+=`<div class="txlog-row">
-          <div class="txlog-icon">${t.icon}</div>
-          <div class="txlog-info">
-            <div class="txlog-desc">${t.desc}</div>
-            <div class="txlog-env">${t.envName}</div>
-          </div>
-          <div class="txlog-right">
-            <div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div>
-          </div>
-          <button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
-        </div>`;
-      });
+function renderTransactionsRows(){
+  const el=document.getElementById('txlog-rows');
+  if(!el)return;
+  let all=getAllTransactions();
+  if(txFilter==='spending') all=all.filter(t=>t.amount<0&&t.envType!=='savings');
+  else if(txFilter==='funding') all=all.filter(t=>t.amount>0&&t.envType!=='savings');
+  else if(txFilter==='savings') all=all.filter(t=>t.envType==='savings');
+  const q=txSearch.toLowerCase();
+  if(q) all=all.filter(t=>t.desc.toLowerCase().includes(q)||t.envName.toLowerCase().includes(q));
+  if(!all.length){el.innerHTML='<div class="txlog-empty">No transactions found.</div>';return;}
+  const groups={};
+  all.forEach(t=>{const key=t.date||'Unknown';if(!groups[key])groups[key]=[];groups[key].push(t);});
+  let html='';
+  Object.entries(groups).forEach(([date,txs])=>{
+    html+=`<div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:900;color:var(--text3);margin:16px 0 8px;">${date}</div>`;
+    txs.forEach(t=>{
+      html+=`<div class="txlog-row">
+        <div class="txlog-icon">${t.icon}</div>
+        <div class="txlog-info"><div class="txlog-desc">${t.desc}</div><div class="txlog-env">${t.envName}</div></div>
+        <div class="txlog-right"><div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div></div>
+        <button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
+      </div>`;
     });
-  }
-
-  container.innerHTML=html;
+  });
+  el.innerHTML=html;
 }
 
 function openEditTxModal(envId,txIdx){
