@@ -21,9 +21,9 @@
   --card:#1a1a1a;
   --card2:#242424;
   --card3:#2e2e2e;
-  --rose:#e05c7a;
-  --rose-dark:#b8445f;
-  --rose-light:#ed8fa3;
+  --rose:#c49080;
+  --rose-dark:#a67068;
+  --rose-light:#d4aa91;
   --text:#ffffff;
   --text2:#cccccc;
   --text3:#777777;
@@ -32,7 +32,7 @@
   --danger:#ff6b6b;
   --info:#6bb5ff;
   --border:rgba(255,255,255,0.08);
-  --border2:rgba(224,92,122,0.3);
+  --border2:rgba(196,144,128,0.3);
   --radius:20px;
   --radius-sm:14px;
 }
@@ -95,10 +95,6 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 .spend-bar-leg-dot{width:8px;height:8px;border-radius:50%;}
 
 /* ── Unallocated banner ── */
-.unalloc-banner{background:var(--card);padding:18px 20px;margin-top:3px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.unalloc-amount{font-family:'Nunito',sans-serif;font-size:22px;font-weight:900;color:var(--rose);}
-.unalloc-label{font-size:12px;color:var(--text3);margin-top:3px;font-weight:600;}
-.unalloc-btn{background:var(--rose);color:#000;border:none;border-radius:50px;padding:12px 22px;font-size:13px;font-weight:800;cursor:pointer;font-family:'Nunito',sans-serif;touch-action:manipulation;white-space:nowrap;}
 
 /* ── Savings pool ── */
 .savings-pool-row{background:var(--card);padding:16px 20px;margin-top:3px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
@@ -356,16 +352,17 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 
   <div class="main">
     <div class="tab-content active" id="tab-dashboard">
-      <!-- Unallocated banner -->
-      <div id="unalloc-banner-container"></div>
       <div id="payday-banner" style="display:none;"></div>
 
+      <!-- Budget Session CTA -->
+      <div style="padding:16px 20px 4px;">
+        <button onclick="openBudgetSession()" style="width:100%;background:var(--rose);border:none;border-radius:16px;padding:16px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:900;color:#000;cursor:pointer;touch-action:manipulation;letter-spacing:.3px;">💰 Budget Session</button>
+      </div>
       <!-- Envelopes -->
       <div id="sections-container"></div>
       <!-- Action buttons -->
       <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding:16px 20px 20px;">
         <button class="btn" onclick="openAddModal()">+ New Envelope</button>
-        <button class="btn btn-primary" onclick="openBudgetSession()">💰 Budget Session</button>
         <button class="btn" onclick="openPaySettingsModal()">⚙</button>
       </div>
     </div>
@@ -1385,7 +1382,6 @@ function renderModal(){
       <div class="form-group"><label class="form-label">Frequency</label>
         <select class="form-select" onchange="S.modal.dueFreq=this.value">
           <option value="" ${!(m.dueFreq||env.dueFreq)?'selected':''}>None</option>
-          <option value="monthly" ${(m.dueFreq||env.dueFreq)==='monthly'?'selected':''}>Monthly</option>
           <option value="biweekly" ${(m.dueFreq||env.dueFreq)==='biweekly'?'selected':''}>Biweekly</option>
           <option value="bimonthly" ${(m.dueFreq||env.dueFreq)==='bimonthly'?'selected':''}>Every 2 Months</option>
           <option value="quarterly" ${(m.dueFreq||env.dueFreq)==='quarterly'?'selected':''}>Every 3 Months</option>
@@ -2450,16 +2446,6 @@ function render(){
 
 
 
-  // Unallocated banner
-  document.getElementById('unalloc-banner-container').innerHTML=S.unallocated!==0?`
-    <div class="unalloc-banner">
-      <div>
-        <div class="unalloc-amount">${fmt(S.unallocated)} ${S.unallocated<0?'over':'unallocated'}</div>
-        <div class="unalloc-label">${S.unallocated>0?'waiting to be assigned to envelopes':S.unallocated<0?'you\'ve allocated more than you have':''}</div>
-      </div>
-      ${S.unallocated>0?`<button class="unalloc-btn" onclick="openBudgetSession()">assign now</button>`:''}
-    </div>`:
-    `<div class="unalloc-banner"><div><div class="unalloc-amount" style="color:var(--success);">$0 unallocated</div><div class="unalloc-label" style="color:var(--text3);">every dollar has a job ✓</div></div></div>`;
 
   // Sections
   const fnd=envs=>envs.filter(e=>e.type==='fixed'&&getStatus(e)==='funded').length;
