@@ -357,6 +357,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
       <!-- Budget Session CTA -->
       <div style="padding:16px 20px 4px;">
         <button onclick="openBudgetSession()" style="width:100%;background:var(--rose);border:none;border-radius:16px;padding:16px;font-family:'Nunito',sans-serif;font-size:16px;font-weight:900;color:#000;cursor:pointer;touch-action:manipulation;letter-spacing:.3px;">💰 Budget Session</button>
+        <div id="unalloc-line" style="display:none;text-align:center;margin-top:8px;font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;color:var(--rose);"></div>
       </div>
       <!-- Envelopes -->
       <div id="sections-container"></div>
@@ -2118,6 +2119,10 @@ function getAllTransactions(){
       all.push({envId:sav.id,txIdx:i,icon:sav.icon,envName:sav.name,envType:'savings',desc:t.desc,amount:t.amount,date:t.date,ts:t.ts||0});
     });
   });
+  // Include income log entries
+  S.incomeLog.forEach((l,i)=>{
+    all.push({envId:null,txIdx:i,icon:'💵',envName:'Income',envType:'income',desc:l.label,amount:l.amount,date:l.date,ts:l.ts||0});
+  });
   all.sort((a,b)=>(b.ts||0)-(a.ts||0));
   return all;
 }
@@ -2163,7 +2168,7 @@ function renderTransactionsRows(){
         <div class="txlog-icon">${t.icon}</div>
         <div class="txlog-info"><div class="txlog-desc">${t.desc}</div><div class="txlog-env">${t.envName}</div></div>
         <div class="txlog-right"><div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div></div>
-        <button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>
+        ${t.envId!==null?`<button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>`:''}
       </div>`;
     });
   });
@@ -2433,6 +2438,17 @@ function renderIncomePanel(){
 
 function render(){
   document.getElementById('payday-banner').innerHTML='';
+
+  // Update unallocated line
+  const unallocLine=document.getElementById('unalloc-line');
+  if(unallocLine){
+    if(S.unallocated>0){
+      unallocLine.style.display='block';
+      unallocLine.textContent=fmt(S.unallocated)+' unallocated — tap an envelope to fund it';
+    } else {
+      unallocLine.style.display='none';
+    }
+  }
 
   const fixed=S.envelopes.filter(e=>e.type==='fixed');
   const variable=S.envelopes.filter(e=>e.type==='variable');
