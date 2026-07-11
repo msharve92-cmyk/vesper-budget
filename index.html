@@ -548,19 +548,44 @@ function getPaydays(count){
 }
 
 function getDaysLeft(dueDay){
+  const days=Array.isArray(dueDay)?dueDay:[dueDay];
   const t=today();t.setHours(0,0,0,0);
-  const due=new Date(t.getFullYear(),t.getMonth(),dueDay);
-  due.setHours(0,0,0,0);
-  if(due<=t)due.setMonth(due.getMonth()+1);
-  return Math.ceil((due-t)/86400000);
+  let minDays=999;
+  days.forEach(d=>{
+    const due=new Date(t.getFullYear(),t.getMonth(),d);
+    due.setHours(0,0,0,0);
+    if(due<=t)due.setMonth(due.getMonth()+1);
+    const dl=Math.ceil((due-t)/86400000);
+    if(dl<minDays)minDays=dl;
+  });
+  return minDays;
+}
+function getDueDaysLeft(env){
+  const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
+  if(!days.length)return[];
+  const t=today();t.setHours(0,0,0,0);
+  return days.map(d=>{
+    const due=new Date(t.getFullYear(),t.getMonth(),d);
+    due.setHours(0,0,0,0);
+    if(due<=t)due.setMonth(due.getMonth()+1);
+    return{day:d,daysLeft:Math.ceil((due-t)/86400000)};
+  }).sort((a,b)=>a.daysLeft-b.daysLeft);
+}
+function getFrequencyLabel(freq){
+  const map={monthly:'Monthly',biweekly:'Biweekly',bimonthly:'Every 2 Months',quarterly:'Every 3 Months',semiannual:'Every 6 Months',annual:'Yearly'};
+  return map[freq]||'Monthly';
 }
 
 function getNextPayBeforeDue(dueDay){
+  const days=Array.isArray(dueDay)?dueDay:[dueDay];
   const t=today();t.setHours(0,0,0,0);
-  const due=new Date(t.getFullYear(),t.getMonth(),dueDay);
-  due.setHours(0,0,0,0);
-  if(due<=t)due.setMonth(due.getMonth()+1);
-  const pays=getPaydays().filter(p=>p.date<due);
+  const minDue=days.reduce((min,d)=>{
+    const due=new Date(t.getFullYear(),t.getMonth(),d);
+    due.setHours(0,0,0,0);
+    if(due<=t)due.setMonth(due.getMonth()+1);
+    return due<min?due:min;
+  },new Date(9999,0,1));
+  const pays=getPaydays().filter(p=>p.date<minDue);
   return pays.length?pays[pays.length-1]:null;
 }
 
@@ -927,7 +952,9 @@ function startSessionAllocation(){
         // Due before next pay — need full amount now
         suggested=env.target;
         urgent=true;
-        note=`Due in ${dl}d`;
+        const _allDays=env.dueDays||(env.dueDay?[env.dueDay]:[]);
+      note=_allDays.length>1?`Due in ${dl}d (${_allDays.join(', ')})`:`Due in ${dl}d`;
+      if(env.dueFreq)note+=' · '+getFrequencyLabel(env.dueFreq);
       } else {
         // Due after next pay — only fund proportional share now
         // How many pay periods until due?
@@ -1351,8 +1378,21 @@ function renderModal(){
         <div style="font-size:9px;color:var(--text3);margin-top:3px;">Set exact balance. No funds move automatically.</div></div>
       <div class="form-group"><label class="form-label">Monthly Target ($)</label>
         <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.target}" oninput="S.modal.target=parseFloat(this.value)||0"/></div>
-      ${env.dueDay!==undefined?`<div class="form-group"><label class="form-label">Due Day of Month</label>
-        <input class="form-input" type="number" min="1" max="31" placeholder="none" value="${m.dueDay}" oninput="S.modal.dueDay=this.value"/></div>`:''}
+      <div class="form-group"><label class="form-label">Due Day(s) of Month</label>
+        <input class="form-input" type="text" inputmode="text" placeholder="e.g. 1 or 1, 15" value="${(m.dueDays||env.dueDays||[]).join(', ')||m.dueDay||env.dueDay||''}" oninput="S.modal.dueDaysRaw=this.value"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">Separate multiple dates with a comma</div>
+      </div>
+      <div class="form-group"><label class="form-label">Frequency</label>
+        <select class="form-select" onchange="S.modal.dueFreq=this.value">
+          <option value="" ${!(m.dueFreq||env.dueFreq)?'selected':''}>None</option>
+          <option value="monthly" ${(m.dueFreq||env.dueFreq)==='monthly'?'selected':''}>Monthly</option>
+          <option value="biweekly" ${(m.dueFreq||env.dueFreq)==='biweekly'?'selected':''}>Biweekly</option>
+          <option value="bimonthly" ${(m.dueFreq||env.dueFreq)==='bimonthly'?'selected':''}>Every 2 Months</option>
+          <option value="quarterly" ${(m.dueFreq||env.dueFreq)==='quarterly'?'selected':''}>Every 3 Months</option>
+          <option value="semiannual" ${(m.dueFreq||env.dueFreq)==='semiannual'?'selected':''}>Every 6 Months</option>
+          <option value="annual" ${(m.dueFreq||env.dueFreq)==='annual'?'selected':''}>Yearly</option>
+        </select>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-primary" style="flex:1" onclick="doEdit()">Save</button>
         <button class="btn btn-danger btn-sm" onclick="doDelete()">Delete</button>
@@ -1740,7 +1780,13 @@ function doEdit(){
     if(m.icon)env.icon=m.icon;
     env.balance=parseFloat(m.balance)||0;
     env.target=parseFloat(m.target)||env.target;
-    if(env.dueDay!==undefined)env.dueDay=m.dueDay?parseInt(m.dueDay):null;
+    // Handle multiple due days
+    if(m.dueDaysRaw!==undefined){
+      const parsed=m.dueDaysRaw.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)&&n>=1&&n<=31);
+      env.dueDays=parsed.length?parsed:null;
+      env.dueDay=parsed.length?parsed[0]:null;
+    }
+    if(m.dueFreq)env.dueFreq=m.dueFreq;
   }
   closeMB();saveState();render();
 }
@@ -1926,7 +1972,12 @@ function renderDetailBody(env){
     const barColor=status==='funded'?'var(--success)':status==='ontrack'?'var(--warning)':'var(--danger)';
     const needed=Math.max(0,env.target-env.balance);
     heroSub=`target: ${fmt(env.target)}`;
-    if(env.dueDay){const dl=getDaysLeft(env.dueDay);heroSub+=` · due in ${dl}d`;}
+    const _dueDays=env.dueDays||(env.dueDay?[env.dueDay]:[]);
+    if(_dueDays.length){
+      const _upcoming=getDueDaysLeft(env);
+      heroSub+=' · '+_upcoming.map(u=>`due ${u.daysLeft===0?'today':'in '+u.daysLeft+'d'}`).join(', ');
+      if(env.dueFreq)heroSub+=' · '+getFrequencyLabel(env.dueFreq);
+    }
     progressHtml=`<div class="detail-progress-wrap"><div class="detail-progress-bar"><div class="detail-progress-fill" style="width:${pct}%;background:${barColor};"></div></div></div>`;
     statsHtml=`<div class="detail-stat-row">
       <div class="detail-stat"><div class="detail-stat-label">Balance</div><div class="detail-stat-val">${fmt(env.balance)}</div></div>
