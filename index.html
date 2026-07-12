@@ -493,6 +493,25 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 </div>
 
 <script>
+// Auto-decimal input handler (cash register style)
+// Type 2365 → shows 23.65
+function cashInput(el){
+  const raw=el.value.replace(/[^0-9]/g,'');
+  if(!raw){el.value='';return;}
+  const cents=parseInt(raw,10)||0;
+  el.value=(cents/100).toFixed(2);
+  // Keep cursor at end
+  el.setSelectionRange(el.value.length,el.value.length);
+}
+function cashBlur(el){
+  const raw=el.value.replace(/[^0-9.]/g,'');
+  if(!raw){el.value='';return;}
+  el.value=(parseFloat(raw)||0).toFixed(2);
+}
+function getCashValue(el){
+  return parseFloat(el.value.replace(/[^0-9.]/g,''))||0;
+}
+
 const EMOJIS=['🏠','💡','📱','🚗','💳','🌐','📦','🎵','☁️','🤖','💰','✈️','🛒','🍔','👗','💊','🎓','🐾','🎮','☕','⛽','💧','🔔','🏥','🐕','🎨','🏋️','📚'];
 
 function getAnchor(){
@@ -706,7 +725,7 @@ function openQuickModal(type){
   document.getElementById('modal-backdrop').style.display='flex';
 }
 function doQuickIncome(){
-  const amt=parseFloat(document.getElementById('q-amt').value);
+  const amt=getCashValue(document.getElementById('q-amt'));
   const lbl=document.getElementById('q-label').value||'Income';
   const itype=document.getElementById('q-itype').value;
   if(isNaN(amt)||amt<=0)return;
@@ -1396,7 +1415,7 @@ function renderModal(){
         <button class="btn" onclick="closeMB()">Cancel</button>
       </div>`;
   } else if(m.type==='spend'){
-    const env=S.envelopes.find(e=>e.id===m.id);const after=env.balance-(parseFloat(m.amount)||0);const neg=after<0;
+    const env=[...S.envelopes,...S.savings].find(e=>e.id===m.id);const after=env.balance-(parseFloat(m.amount)||0);const neg=after<0;
     setModalTitle(`Record Spend — ${env.icon} ${env.name}`);
     inner.innerHTML=`      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
         <div><div class="si-label">Current</div><div class="si-val">${fmt(env.balance)}</div></div>
@@ -1404,7 +1423,7 @@ function renderModal(){
       </div></div>
       <div id="spend-warn">${neg?`<div class="warning-toast">⚠ This puts the envelope negative by ${fmt(Math.abs(after))}.</div>`:''}</div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="spend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSpendPreview(${env.balance})"/></div>
+        <input class="form-input" id="spend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateSpendPreview(${env.balance})"/ onblur="cashBlur(this)"></div>
       <div class="form-group"><label class="form-label">Description</label>
         <input class="form-input" id="spend-desc" placeholder="e.g. HEB"/></div>
       <div class="modal-actions">
@@ -1429,7 +1448,7 @@ function renderModal(){
           <button id="fund-add-btn" class="btn${dir==='add'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('add',${env.balance},${S.unallocated})">+ Add</button>
           <button id="fund-sub-btn" class="btn${dir==='sub'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('sub',${env.balance},${S.unallocated})">− Remove</button>
         </div>
-        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})"/>
+        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateFundPreview(${env.balance},${S.unallocated})"/ onblur="cashBlur(this)">
       </div>
       ${dir==='add'?`<div class="form-group">
         <label class="form-label">Source</label>
@@ -1460,7 +1479,7 @@ function renderModal(){
         <div style="font-size:10px;color:var(--text3);margin-top:6px;">${src==='unallocated'?`Unallocated: ${fmt(S.unallocated)}`:'Adds directly — no income log needed.'}</div>
       </div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this)"/ onblur="cashBlur(this)"></div>
       <div class="modal-actions">
         <button class="btn btn-primary" style="flex:1" onclick="doSavFund()">Deposit</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1473,7 +1492,7 @@ function renderModal(){
         <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="savspend-after">${fmt(after)}</div></div>
       </div></div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSavSpendPreview(${sav.balance})"/></div>
+        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateSavSpendPreview(${sav.balance})"/ onblur="cashBlur(this)"></div>
       <div class="form-group"><label class="form-label">Reason</label>
         <input class="form-input" id="savspend-desc" placeholder="e.g. Car repair"/></div>
       <div class="modal-actions">
@@ -1484,15 +1503,17 @@ function renderModal(){
     const allEnvs=[...S.envelopes,...S.savings];
     const env=allEnvs.find(e=>e.id===m.envId);
     const tx=env.transactions[m.txIdx];
+    const envOpts=allEnvs.map(e=>`<option value="${e.id}"${e.id===m.envId?' selected':''}>${e.icon} ${e.name}</option>`).join('');
     setModalTitle('Edit Transaction');
-    inner.innerHTML=`      <div class="sib" style="margin-bottom:12px;">
-        <div style="font-size:10px;color:var(--text3);margin-bottom:4px;">${env.icon} ${env.name}</div>
-        <div style="font-size:12px;color:var(--text2);">Editing will adjust the envelope balance automatically.</div>
+    inner.innerHTML=`      <div class="form-group"><label class="form-label">Envelope</label>
+        <select class="form-select" onchange="S.modal.newEnvId=parseInt(this.value)">
+          ${envOpts}
+        </select>
       </div>
       <div class="form-group"><label class="form-label">Description</label>
         <input class="form-input" id="edittx-desc" value="${tx.desc}"/></div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="edittx-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${Math.abs(tx.amount).toFixed(2)}"/>
+        <input class="form-input" id="edittx-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${Math.abs(tx.amount).toFixed(2)}" onblur="cashBlur(this)"/>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;">Enter as positive — direction (in/out) stays the same.</div>
       </div>
       <div class="modal-actions">
@@ -1520,7 +1541,7 @@ function renderModal(){
     if(qtype==='income'){
       setModalTitle('Log Income');
     inner.innerHTML=`        <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
         <div class="form-group"><label class="form-label">Label</label>
           <input class="form-input" id="q-label" placeholder="e.g. Biweekly Paycheck" value="${m.label}"/></div>
         <div class="form-group"><label class="form-label">Type</label>
@@ -1546,7 +1567,7 @@ function renderModal(){
           <div style="text-align:right"><div class="si-label">After</div><div class="si-val${after<0?' warn':''}">${fmt(after)}</div></div>
         </div></div>`:''}
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount}" oninput="S.modal.amount=this.value"/></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount}" oninput="S.modal.amount=this.value"/ onblur="cashBlur(this)"></div>
         <div class="form-group"><label class="form-label">Description</label>
           <input class="form-input" id="q-desc" placeholder="e.g. HEB" value="${m.desc}" oninput="S.modal.desc=this.value"/></div>
         <div class="modal-actions">
@@ -1573,7 +1594,7 @@ function renderModal(){
           <div style="font-size:9px;color:var(--text3);margin-top:5px;">${src==='direct'?'Skip the income log — add straight to this envelope.':'Use money already in your unallocated balance.'}</div>
         </div>
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" style="flex:1" onclick="doQuickFund()">Fund</button>
           <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1590,7 +1611,7 @@ function renderModal(){
             ${allEnvs.filter(e=>e.id!==(m.envId||allEnvs[0]?.id)).map(e=>`<option value="${e.id}">${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('')}
           </select></div>
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" style="flex:1" onclick="doQuickTransfer()">Transfer</button>
           <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1748,7 +1769,7 @@ function renderModal(){
 
       <div class="form-group">
         <label class="form-label">Amount ($)</label>
-        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="S.modal.amount=this.value"/>
+        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="cashInput(this);S.modal.amount=getCashValue(this)"/ onblur="cashBlur(this)">
         ${fromAfter<0?`<div style="font-size:10px;color:var(--danger);margin-top:4px;">⚠ This puts the source envelope negative by ${fmt(Math.abs(fromAfter))}</div>`:''}
       </div>
 
@@ -1837,8 +1858,8 @@ function updateSavSpendPreview(bal){
   if(el){el.textContent=fmt(after);el.className='si-val'+(after<0?' warn':'');}
 }
 function doSpend(){
-  const m=S.modal;const env=S.envelopes.find(e=>e.id===m.id);
-  const amt=parseFloat(document.getElementById('spend-amt').value);
+  const m=S.modal;const env=[...S.envelopes,...S.savings].find(e=>e.id===m.id);
+  const amt=getCashValue(document.getElementById('spend-amt'));
   const desc=document.getElementById('spend-desc').value;
   if(isNaN(amt)||amt<=0)return;
   env.balance-=amt;env.transactions.unshift({desc:desc||'Purchase',amount:-amt,date:fmtShort(today()),ts:Date.now()});
@@ -1861,7 +1882,7 @@ function updateFundPreview(bal,unalloc){
 }
 function doFund(){
   const m=S.modal;const env=S.envelopes.find(e=>e.id===m.id);
-  const amt=parseFloat(document.getElementById('fu-a').value);
+  const amt=getCashValue(document.getElementById('fu-a'));
   if(isNaN(amt)||amt<=0)return;
   const dir=m.dir||'add';
   const src=m.src||'unallocated';
@@ -1881,7 +1902,7 @@ function doFund(){
 }
 function doSavFund(){
   const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
-  const amt=parseFloat(document.getElementById('sf-a').value);
+  const amt=getCashValue(document.getElementById('sf-a'));
   const src=m.src||'unallocated';
   if(isNaN(amt)||amt<=0)return;
   if(src==='unallocated'){
@@ -1894,7 +1915,7 @@ function doSavFund(){
 }
 function doSavSpend(){
   const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
-  const amt=parseFloat(document.getElementById('savspend-amt').value);
+  const amt=getCashValue(document.getElementById('savspend-amt'));
   const desc=document.getElementById('savspend-desc').value;
   if(isNaN(amt)||amt<=0)return;
   sav.balance-=amt;
@@ -2192,15 +2213,29 @@ function doEditTx(){
   const env=allEnvs.find(e=>e.id===m.envId);
   if(!env)return;
   const tx=env.transactions[m.txIdx];
-  const newAmt=parseFloat(document.getElementById('edittx-amt').value);
+  const newAmt=getCashValue(document.getElementById('edittx-amt'));
   const newDesc=document.getElementById('edittx-desc').value||tx.desc;
   if(isNaN(newAmt)||newAmt<=0)return;
   const oldSigned=tx.amount;
   const newSigned=m.isNeg?-newAmt:newAmt;
-  // adjust envelope balance by the difference
-  env.balance+=(newSigned-oldSigned);
-  tx.amount=newSigned;
-  tx.desc=newDesc;
+  const newEnvId=m.newEnvId||m.envId;
+
+  if(newEnvId!==m.envId){
+    // Moving to different envelope
+    const newEnv=allEnvs.find(e=>e.id===newEnvId);
+    if(!newEnv)return;
+    // Reverse from old envelope
+    env.balance-=oldSigned;
+    env.transactions.splice(m.txIdx,1);
+    // Add to new envelope
+    newEnv.balance+=newSigned;
+    newEnv.transactions.unshift({desc:newDesc,amount:newSigned,date:tx.date,ts:tx.ts||Date.now()});
+  } else {
+    // Same envelope, just update
+    env.balance+=(newSigned-oldSigned);
+    tx.amount=newSigned;
+    tx.desc=newDesc;
+  }
   closeMB();saveState();render();
   if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
 }
@@ -2416,7 +2451,7 @@ function renderIncomePanel(){
     <div class="income-panel">
       <div class="income-panel-title">Log Income</div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" style="width:130px;"/>
+        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" oninput="cashInput(this)" style="width:130px;"/ onblur="cashBlur(this)">
         <input class="finput" id="custom-inc-lbl" placeholder="Label (optional)" style="flex:1;min-width:140px;"/>
         <button class="btn btn-primary btn-sm" onclick="addIncome('other')">+ Add</button>
       </div>
