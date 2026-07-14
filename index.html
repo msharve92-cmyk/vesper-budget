@@ -660,6 +660,12 @@ function saveState(){
 }
 
 let S=loadState();
+window.S=S;
+window.BS=null;
+window.calcState={activeIdx:null,value:'0',op:null,opValue:null};
+window.txFilter='all';
+window.txSearch='';
+window.sectionOpen={fixed:false,variable:true,savings:true};
 S.expandedId=null;
 
 function getStatus(env){const p=env.balance/env.target;return p>=1?'funded':p>=0.5?'ontrack':'behind';}
@@ -1411,20 +1417,15 @@ function renderModal(){
     const allEnvs=[...S.envelopes,...S.savings];
     const env=allEnvs.find(e=>e.id===m.id);
     const after=env.balance-(parseFloat(m.amount)||0);const neg=after<0;
-    const envOpts=allEnvs.map(e=>`<option value="${e.id}" data-bal="${e.balance}"${e.id===m.id?' selected':''}>${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('');
     setModalTitle(`Record Spend — ${env.icon} ${env.name}`);
-    inner.innerHTML=`      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
-        <div><div class="si-label">Current</div><div class="si-val" id="spend-current">${fmt(env.balance)}</div></div>
+    inner.innerHTML=`
+      <div class="sib"><div style="display:flex;justify-content:space-between;gap:10px;">
+        <div><div class="si-label">Current</div><div class="si-val">${fmt(env.balance)}</div></div>
         <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="spend-after">${fmt(after)}</div></div>
       </div></div>
-      <div class="form-group"><label class="form-label">Envelope</label>
-        <select class="form-select" id="spend-env-select" onchange="S.modal.id=parseInt(this.value);document.getElementById('spend-current').textContent=fmt(parseFloat(this.selectedOptions[0].dataset.bal));updateSpendPreview(parseFloat(this.selectedOptions[0].dataset.bal))">
-          ${envOpts}
-        </select>
-      </div>
       <div id="spend-warn">${neg?`<div class="warning-toast">⚠ This puts the envelope negative by ${fmt(Math.abs(after))}.</div>`:''}</div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="spend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateSpendPreview(parseFloat(document.getElementById('spend-env-select').selectedOptions[0].dataset.bal))" onblur="cashBlur(this)"/></div>
+        <input class="form-input" id="spend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="const _a=parseFloat(this.value)||0;const _el=document.getElementById('spend-after');if(_el)_el.textContent=fmt(${env.balance}-_a);" onblur="cashBlur(this)"/></div>
       <div class="form-group"><label class="form-label">Description</label>
         <input class="form-input" id="spend-desc" placeholder="e.g. HEB"/></div>
       <div class="modal-actions">
@@ -1449,7 +1450,7 @@ function renderModal(){
           <button id="fund-add-btn" class="btn${dir==='add'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('add',${env.balance},${S.unallocated})">+ Add</button>
           <button id="fund-sub-btn" class="btn${dir==='sub'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('sub',${env.balance},${S.unallocated})">− Remove</button>
         </div>
-        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateFundPreview(${env.balance},${S.unallocated})"/ onblur="cashBlur(this)">
+        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})"/ onblur="cashBlur(this)">
       </div>
       ${dir==='add'?`<div class="form-group">
         <label class="form-label">Source</label>
@@ -1480,7 +1481,7 @@ function renderModal(){
         <div style="font-size:10px;color:var(--text3);margin-top:6px;">${src==='unallocated'?`Unallocated: ${fmt(S.unallocated)}`:'Adds directly — no income log needed.'}</div>
       </div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this)"/ onblur="cashBlur(this)"></div>
+        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput=""/ onblur="cashBlur(this)"></div>
       <div class="modal-actions">
         <button class="btn btn-primary" style="flex:1" onclick="doSavFund()">Deposit</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1493,7 +1494,7 @@ function renderModal(){
         <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="savspend-after">${fmt(after)}</div></div>
       </div></div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="cashInput(this);updateSavSpendPreview(${sav.balance})"/ onblur="cashBlur(this)"></div>
+        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSavSpendPreview(${sav.balance})"/ onblur="cashBlur(this)"></div>
       <div class="form-group"><label class="form-label">Reason</label>
         <input class="form-input" id="savspend-desc" placeholder="e.g. Car repair"/></div>
       <div class="modal-actions">
@@ -1524,7 +1525,7 @@ function renderModal(){
       </div>`;
   } else if(m.type==='quick'){
     const allEnvs=[...S.envelopes,...S.savings];
-    const spendEnvs=S.envelopes;
+    const spendEnvs=[...S.envelopes,...S.savings];
     const fundEnvs=S.envelopes;
     const qtype=m.qtype;
 
@@ -1770,7 +1771,7 @@ function renderModal(){
 
       <div class="form-group">
         <label class="form-label">Amount ($)</label>
-        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="cashInput(this);S.modal.amount=getCashValue(this)"/ onblur="cashBlur(this)">
+        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="S.modal.amount=getCashValue(this)"/ onblur="cashBlur(this)">
         ${fromAfter<0?`<div style="font-size:10px;color:var(--danger);margin-top:4px;">⚠ This puts the source envelope negative by ${fmt(Math.abs(fromAfter))}</div>`:''}
       </div>
 
@@ -1843,6 +1844,11 @@ function deleteIncome(idx){
   S.incomeLog.splice(idx,1);
   saveState();render();
   renderIncomePanel();
+}
+function onSpendEnvChange(sel){
+  const id=parseInt(sel.value,10);
+  S.modal.id=id;
+  renderModal();
 }
 function updateSpendPreview(bal){
   const amt=parseFloat(document.getElementById('spend-amt').value)||0;
@@ -2452,7 +2458,7 @@ function renderIncomePanel(){
     <div class="income-panel">
       <div class="income-panel-title">Log Income</div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" oninput="cashInput(this)" style="width:130px;"/ onblur="cashBlur(this)">
+        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" style="width:130px;"/ onblur="cashBlur(this)">
         <input class="finput" id="custom-inc-lbl" placeholder="Label (optional)" style="flex:1;min-width:140px;"/>
         <button class="btn btn-primary btn-sm" onclick="addIncome('other')">+ Add</button>
       </div>
