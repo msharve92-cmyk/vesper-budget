@@ -185,7 +185,7 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 
 
 /* ── Buttons ── */
-.btn{border:2px solid var(--border2);background:var(--card);color:var(--rose);padding:10px 18px;border-radius:50px;cursor:pointer;font-size:13px;font-family:'Nunito',sans-serif;font-weight:800;transition:all .2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+.btn{border:2px solid var(--border2);background:var(--card);color:var(--rose);padding:10px 18px;border-radius:50px;cursor:pointer;font-size:13px;font-family:'Nunito',sans-serif;font-weight:800;transition:background .2s,border-color .2s;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
 .btn:hover{background:var(--card2);}
 .btn-primary{background:var(--rose);border-color:var(--rose);color:#000;}
 .btn-primary:hover{background:var(--rose-dark);}
@@ -1375,6 +1375,7 @@ function renderModal(){
       </div>`;
   } else if(m.type==='edit'){
     const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
+    const isSav=S.savings.some(s=>s.id===m.id);
     setModalTitle(`Edit — ${env.icon} ${env.name}`);
     inner.innerHTML=`      <div class="form-row">
         <div class="form-group"><label class="form-label">Name</label>
@@ -1389,9 +1390,9 @@ function renderModal(){
           </div>
         </div>
       </div>
-      <div class="form-group"><label class="form-label">Current Balance ($)</label>
-        <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.balance}" oninput="S.modal.balance=parseFloat(this.value)||0"/>
-        <div style="font-size:9px;color:var(--text3);margin-top:3px;">Set exact balance. No funds move automatically.</div></div>
+      ${isSav?`<div class="form-group"><label class="form-label">Current Balance ($)</label>
+        <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.balance}" oninput="S.modal.balance=parseFloat(this.value)||0" onblur="cashBlur(this)"/>
+        <div style="font-size:9px;color:var(--text3);margin-top:3px;">Adjust to match your real savings account.</div></div>`:''}
       <div class="form-group"><label class="form-label">Monthly Target ($)</label>
         <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.target}" oninput="S.modal.target=parseFloat(this.value)||0"/></div>
       <div class="form-group"><label class="form-label">Due Day(s) of Month</label>
@@ -1795,10 +1796,20 @@ function doAdd(){
 }
 function doEdit(){
   const m=S.modal;const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
+  const isSav=S.savings.some(s=>s.id===m.id);
   if(env){
     if(m.name&&m.name.trim())env.name=m.name.trim();
     if(m.icon)env.icon=m.icon;
-    env.balance=parseFloat(m.balance)||0;
+    // Only savings envelopes can have balance manually adjusted
+    if(isSav&&m.balance!==undefined){
+      const oldBal=env.balance;
+      const newBal=parseFloat(m.balance)||0;
+      if(newBal!==oldBal){
+        env.balance=newBal;
+        const diff=newBal-oldBal;
+        env.transactions.unshift({desc:'Balance Adjustment',amount:diff,date:fmtShort(today()),ts:Date.now()});
+      }
+    }
     env.target=parseFloat(m.target)||env.target;
     // Handle multiple due days
     if(m.dueDaysRaw!==undefined){
