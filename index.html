@@ -493,16 +493,17 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
 </div>
 
 <script>
-// Auto-decimal input handler (cash register style)
-// Type 2365 → shows 23.65
+// Money fields format only on blur; typing is never reformatted.
 function cashInput(el){}
 function cashBlur(el){
-  if(!el.value)return;
-  const val=parseFloat(el.value.replace(/[^0-9.]/g,''))||0;
-  el.value=val.toFixed(2);
+  if(!el.value.trim())return;
+  const val=getCashValue(el);if(Number.isFinite(val))el.value=val.toFixed(2);
 }
 function getCashValue(el){
-  return parseFloat(el.value.replace(/[^0-9.]/g,''))||0;
+  const raw=String(el.value).trim().replace(/^\$/, '').replace(/,/g,'');
+  if(!raw)return 0;
+  if(!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw))return NaN;
+  return Number(raw);
 }
 
 const EMOJIS=['🏠','💡','📱','🚗','💳','🌐','📦','🎵','☁️','🤖','💰','✈️','🛒','🍔','👗','💊','🎓','🐾','🎮','☕','⛽','💧','🔔','🏥','🐕','🎨','🏋️','📚'];
@@ -676,17 +677,12 @@ function loadState(){
 }
 let saveTimeout=null;
 function saveState(){
-  clearTimeout(saveTimeout);
-  saveTimeout=setTimeout(()=>{
-    try{
-      const toSave=Object.assign({},S);
-      delete toSave.modal;delete toSave.expandedId;
-      localStorage.setItem(STORAGE_KEY,JSON.stringify(toSave));
-      const ind=document.getElementById('save-indicator');
-      ind.classList.add('show');
-      setTimeout(()=>ind.classList.remove('show'),1500);
-    }catch(e){}
-  },400);
+  try{
+    const toSave=Object.assign({},S);delete toSave.modal;delete toSave.expandedId;
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(toSave));
+    const ind=document.getElementById('save-indicator');ind.classList.add('show');
+    clearTimeout(saveTimeout);saveTimeout=setTimeout(()=>ind.classList.remove('show'),1500);
+  }catch(e){alert('Changes could not be saved on this device. Keep this page open and try again.');}
 }
 
 let S=loadState();
@@ -697,6 +693,49 @@ window.txFilter='all';
 window.txSearch='';
 window.sectionOpen={fixed:false,variable:true,savings:true};
 S.expandedId=null;
+
+
+function money(n){return Math.round((Number(n)+Number.EPSILON)*100)/100;}
+function validAmount(n){return Number.isFinite(n)&&n>0&&n<=1000000000;}
+function allAccounts(){return [...S.envelopes,...S.savings];}
+function isSavings(env){return S.savings.some(e=>e.id===env.id);}
+function txId(){S.txSequence=(S.txSequence||0)+1;return 'v2-'+Date.now().toString(36)+'-'+S.txSequence;}
+function recordTx(env,tx){
+  tx.id=tx.id||txId();tx.amount=money(tx.amount);tx.epoch=env.epoch||0;
+  tx.unallocatedEpoch=S.unallocatedEpoch||0;
+  tx.date=tx.date||fmtShort(today());tx.ts=tx.ts||Date.now();
+  env.transactions.unshift(tx);return tx;
+}
+function unallocatedEffect(tx){return tx.source==='unallocated'?-tx.amount:0;}
+function canChangeTx(env,tx){
+  if((tx.epoch||0)!==(env.epoch||0)){
+    alert('This entry is from before a later Budget Session. Its balance was replaced by that session, so it is kept as history.');return false;
+  }
+  if(!tx.kind&&(tx.desc==='Budget Session'||/^(Funded|Deposit|Returned to unallocated|Transfer to |Transfer from )/.test(tx.desc))){
+    alert('This older entry has no reliable reversal details. It is kept as history to avoid changing the wrong balance.');return false;
+  }
+  if(tx.source==='unallocated'&&(tx.unallocatedEpoch||0)!==(S.unallocatedEpoch||0)){
+    alert('Unallocated was reconciled in a later Budget Session. This older entry is kept as history.');return false;
+  }
+  return true;
+}
+function transferPartner(env,tx){
+  if(!tx.transferId)return null;
+  const matches=[];
+  S.envelopes.forEach(e=>e.transactions.forEach(t=>{if(t!==tx&&t.transferId===tx.transferId)matches.push({env:e,tx:t});}));
+  return matches.length===1&&matches[0].env!==env&&money(matches[0].tx.amount+tx.amount)===0?matches[0]:null;
+}
+function makeTransfer(fromId,toId,amount){
+  const from=S.envelopes.find(e=>e.id===fromId),to=S.envelopes.find(e=>e.id===toId);
+  const amt=money(amount);
+  if(!from||!to||from===to||!validAmount(amt)){alert('Choose two different budget envelopes and a valid amount.');return false;}
+  const transferId=txId(),ts=Date.now();
+  from.balance=money(from.balance-amt);to.balance=money(to.balance+amt);
+  recordTx(from,{kind:'transfer',transferId,otherId:to.id,desc:'Transfer to '+to.name,amount:-amt,ts});
+  recordTx(to,{kind:'transfer',transferId,otherId:from.id,desc:'Transfer from '+from.name,amount:amt,ts});
+  return true;
+}
+function finishMutation(){closeMB();saveState();render();if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();}
 
 function getStatus(env){const p=env.balance/env.target;return p>=1?'funded':p>=0.5?'ontrack':'behind';}
 
@@ -722,9 +761,9 @@ function showTab(name,btn){
 function addIncome(type,amount,label){
   const amt=amount||parseFloat(document.getElementById('custom-inc-amt').value);
   const lbl=label||document.getElementById('custom-inc-lbl').value||'Income';
-  if(isNaN(amt)||amt<=0)return;
-  S.unallocated+=amt;
-  S.incomeLog.unshift({type,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
+  if(!validAmount(amt))return;
+  S.unallocated=money(S.unallocated+amt);
+  S.incomeLog.unshift({unallocatedEpoch:S.unallocatedEpoch||0,type,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
   if(!amount){document.getElementById('custom-inc-amt').value='';document.getElementById('custom-inc-lbl').value='';}
   saveState();render();
   if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();
@@ -757,51 +796,27 @@ function doQuickIncome(){
   const amt=getCashValue(document.getElementById('q-amt'));
   const lbl=document.getElementById('q-label').value||'Income';
   const itype=document.getElementById('q-itype').value;
-  if(isNaN(amt)||amt<=0)return;
-  S.unallocated+=amt;
-  S.incomeLog.unshift({type:itype,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
+  if(!validAmount(amt))return;
+  S.unallocated=money(S.unallocated+amt);
+  S.incomeLog.unshift({unallocatedEpoch:S.unallocatedEpoch||0,type:itype,amount:amt,label:lbl,date:fmtShort(today()),ts:Date.now()});
   closeMB();saveState();render();
 }
 function doQuickSpend(){
-  const m=S.modal;
-  const allEnvs=[...S.envelopes,...S.savings];
-  const envId=m.envId||S.envelopes[0]?.id;
-  const env=allEnvs.find(e=>e.id===envId);
-  const amt=parseFloat(document.getElementById('q-amt').value);
-  const desc=document.getElementById('q-desc').value||'Purchase';
-  if(!env||isNaN(amt)||amt<=0)return;
-  env.balance-=amt;
-  env.transactions.unshift({desc,amount:-amt,date:fmtShort(today()),ts:Date.now()});
-  closeMB();saveState();render();
+  const env=S.envelopes.find(e=>e.id===Number(document.getElementById('q-env').value)),amt=money(getCashValue(document.getElementById('q-amt')));
+  if(!env||!validAmount(amt))return;
+  env.balance=money(env.balance-amt);recordTx(env,{kind:'spend',desc:document.getElementById('q-desc').value||'Purchase',amount:-amt});finishMutation();
 }
 function doQuickFund(){
-  const m=S.modal;
-  const allEnvs=[...S.envelopes,...S.savings];
-  const envId=m.envId||S.envelopes[0]?.id;
-  const env=allEnvs.find(e=>e.id===envId);
-  const amt=parseFloat(document.getElementById('q-amt').value);
-  const src=m.src||'unallocated';
-  if(!env||isNaN(amt)||amt<=0)return;
-  if(src==='unallocated'){
-    if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
-    S.unallocated-=amt;
-  }
-  env.balance+=amt;
-  env.transactions.unshift({desc:src==='direct'?'Added Directly':'Funded',amount:amt,date:fmtShort(today()),ts:Date.now()});
-  closeMB();saveState();render();
+  const env=S.envelopes.find(e=>e.id===Number(document.getElementById('q-env').value));
+  const amt=money(getCashValue(document.getElementById('q-amt'))),src=S.modal.src||'unallocated';
+  if(!env||!validAmount(amt))return;
+  if(src==='unallocated'&&amt>S.unallocated){alert('Not enough unallocated funds.');return;}
+  if(src==='unallocated')S.unallocated=money(S.unallocated-amt);
+  env.balance=money(env.balance+amt);
+  recordTx(env,{kind:'fund',source:src,desc:src==='direct'?'Added Directly':'Funded',amount:amt});finishMutation();
 }
 function doQuickTransfer(){
-  const allEnvs=[...S.envelopes,...S.savings];
-  const fromId=parseInt(document.getElementById('q-from').value);
-  const toId=parseInt(document.getElementById('q-to').value);
-  const amt=parseFloat(document.getElementById('q-amt').value);
-  const fromEnv=allEnvs.find(e=>e.id===fromId);
-  const toEnv=allEnvs.find(e=>e.id===toId);
-  if(!fromEnv||!toEnv||isNaN(amt)||amt<=0)return;
-  const date=fmtShort(today());
-  fromEnv.balance-=amt;fromEnv.transactions.unshift({desc:`Transfer to ${toEnv.name}`,amount:-amt,date});
-  toEnv.balance+=amt;toEnv.transactions.unshift({desc:`Transfer from ${fromEnv.name}`,amount:amt,date});
-  closeMB();saveState();render();
+  if(makeTransfer(Number(document.getElementById('q-from').value),Number(document.getElementById('q-to').value),getCashValue(document.getElementById('q-amt'))))finishMutation();
 }
 
 // ---- SPENDING ALERTS ----
@@ -830,6 +845,7 @@ function getSpendingAlerts(){
 
 
 
+const historyOpenMonths={};
 function renderHistory(){
   const container=document.getElementById('history-panel');
   // Group all transactions by month
@@ -945,7 +961,7 @@ function renderSessionStep1(){
   panel.innerHTML=`
     <div class="session-header">
       <div class="session-header-title">Budget Session</div>
-      <div class="session-header-sub">Enter your real total balance across all your accounts. Every dollar will be assigned before you finish.</div>
+      <div class="session-header-sub">Enter the balance you are allocating today, excluding existing savings. Every dollar will be assigned before you finish.</div>
     </div>
     <div class="session-section-title">What's your total balance right now?</div>
     <div style="background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:16px;">
@@ -953,7 +969,7 @@ function renderSessionStep1(){
         placeholder="0.00"
         style="width:100%;background:var(--card2);border:1px solid var(--border2);border-radius:9px;padding:14px 16px;color:var(--rose);font-family:'DM Sans',sans-serif;font-size:28px;font-weight:600;outline:none;text-align:center;"
         oninput="updateSessionTotal(this.value)"/>
-      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;">Include checking, savings — everything you have available</div>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;">Include money for bills, spending, and new savings deposits. Exclude money already saved.</div>
     </div>
     <div id="session-total-preview" style="margin-top:10px;"></div>
     <div style="margin-top:16px;">
@@ -972,7 +988,7 @@ function updateSessionTotal(val){
     prev.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--text2);">
       <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Total entering session</span><span style="color:var(--rose);font-weight:600;">${fmt(amt)}</span></div>
       <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Fixed bills total</span><span>${fmt(billsTotal)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid var(--border);"><span>Left for variable + savings</span><span style="color:${remaining>=0?'var(--success)':'var(--danger)'};">${fmt(remaining)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid var(--border);"><span>Left for spending + new savings</span><span style="color:${remaining>=0?'var(--success)':'var(--danger)'};">${fmt(remaining)}</span></div>
     </div>`;
   } else {
     prev.innerHTML='';
@@ -980,8 +996,8 @@ function updateSessionTotal(val){
 }
 
 function startSessionAllocation(){
-  const amt=parseFloat(document.getElementById('session-total-input').value);
-  if(isNaN(amt)||amt<=0){alert('Enter your total balance to continue.');return;}
+  const amt=money(getCashValue(document.getElementById('session-total-input')));
+  if(!validAmount(amt)){alert('Enter your total balance to continue.');return;}
 
   const allocs=[];
   const nextPay=getPaydays(1)[0];
@@ -1023,11 +1039,10 @@ function startSessionAllocation(){
     allocs.push({id:env.id,icon:env.icon,name:env.name,type:'variable',suggested:env.target||0,amount:env.balance,urgent:false,note:'variable spending',target:env.target});
   });
 
-  // Savings — start at 0, suggest 0
+  // Only NEW deposits are allocated; existing savings never enter the budget.
   S.savings.forEach(sav=>{
-    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:sav.balance,urgent:false,note:'savings goal',target:sav.target});
+    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:0,urgent:false,note:'New deposit · already saved '+fmt(sav.balance),target:Math.max(0,money(sav.target-sav.balance))});
   });
-
   BS={total:amt,allocs};
   renderSessionAllocation();
 }
@@ -1043,7 +1058,7 @@ function renderSessionAllocation(){
   const urgentRows=BS.allocs.filter(a=>a.urgent);
   const fixedRows=BS.allocs.filter(a=>a.type==='fixed'&&!a.urgent);
   const variableRows=BS.allocs.filter(a=>a.type==='variable');
-  const savingsRows=BS.allocs.filter(a=>a.type==='savings');
+
 
   // Build all rows with explicit global indices
   const allRowsWithIdx=BS.allocs.map((a,idx)=>({a,idx}));
@@ -1082,8 +1097,8 @@ function renderSessionAllocation(){
 
     ${allRowsWithIdx.filter(({a})=>a.type==='fixed').length?`<div class="session-section-title">Fixed Bills</div>${allRowsWithIdx.filter(({a})=>a.type==='fixed').map(buildRow).join('')}`:''}
     ${allRowsWithIdx.filter(({a})=>a.type==='variable').length?`<div class="session-section-title">Variable Spending</div>${allRowsWithIdx.filter(({a})=>a.type==='variable').map(buildRow).join('')}`:''}
-    ${allRowsWithIdx.filter(({a})=>a.type==='savings').length?`<div class="session-section-title">Savings Goals</div>${allRowsWithIdx.filter(({a})=>a.type==='savings').map(buildRow).join('')}`:''}
 
+    ${allRowsWithIdx.some(({a})=>a.type==='savings')?`<div class="session-section-title">Add to Savings</div><div style="font-size:12px;color:var(--text3);margin-bottom:10px;">These new deposits use money from this session. Existing savings stay separate.</div>${allRowsWithIdx.filter(({a})=>a.type==='savings').map(buildRow).join('')}`:''}
     <div class="session-confirm-bar">
       <div class="session-confirm-status${done?' ready':over?' over':''}">
         ${done?'✓ All funds assigned — ready to confirm!'
@@ -1214,21 +1229,27 @@ function clearAllEnvelopes(){
 }
 
 function confirmSession(){
-  if(!BS)return;
-  S.unallocated=0;
+  if(!BS||!Number.isFinite(BS.total))return;
+  const ids=new Set();
+  const valid=BS.allocs.every(a=>(a.type==='savings'?S.savings:S.envelopes).some(e=>e.id===a.id)&&!ids.has(a.id)&&ids.add(a.id)&&Number.isFinite(Number(a.amount))&&Number(a.amount)>=0);
+  if(!valid||ids.size!==S.envelopes.length+S.savings.length||Math.round(BS.total*100)!==BS.allocs.reduce((sum,a)=>sum+Math.round(Number(a.amount)*100),0)){
+    alert('Assign the exact budget balance before confirming.');return;
+  }
+  S.unallocated=0;S.unallocatedEpoch=(S.unallocatedEpoch||0)+1;
   BS.allocs.forEach(a=>{
-    const allEnvs=[...S.envelopes,...S.savings];
-    const env=allEnvs.find(e=>e.id===a.id);
-    if(env){
-      const amt=parseFloat(a.amount)||0;
-      env.balance=amt;
-      env.transactions.unshift({desc:'Budget Session',amount:amt,date:fmtShort(today()),ts:Date.now()});
+    if(a.type==='savings'){
+      const sav=S.savings.find(e=>e.id===a.id),deposit=money(Number(a.amount));
+      if(deposit>0){
+        sav.balance=money(sav.balance+deposit);
+        recordTx(sav,{kind:'savings',source:'session',desc:'Budget Session Savings Deposit',amount:deposit});
+      }
+      return;
     }
+    const env=S.envelopes.find(e=>e.id===a.id),amount=money(Number(a.amount)),before=env.balance;
+    env.epoch=(env.epoch||0)+1;env.balance=amount;
+    if(money(amount-before)!==0)recordTx(env,{kind:'session',desc:'Budget Session',amount:money(amount-before),before,after:amount});
   });
-  BS=null;
-  saveState();
-  showTab('dashboard',document.getElementById('bnav-dashboard'));
-  render();
+  BS=null;closeCalcKeyboard();saveState();showTab('dashboard',document.getElementById('bnav-dashboard'));render();
 }
 
 function cancelSession(){
@@ -1299,27 +1320,15 @@ function openEditModal(id){
   S.modal={type:'edit',id,name:env.name,icon:env.icon,balance:env.balance,target:env.target,dueDay:env.dueDay!=null?env.dueDay:''};
   renderModal();openModalEl();
 }
-function openSavFundModal(id){S.modal={type:'savfund',id,src:'unallocated'};renderModal();openModalEl();}
+function openSavFundModal(id){S.modal={type:'savfund',id,src:'direct'};renderModal();openModalEl();}
 function openSavSpendModal(id){S.modal={type:'savspend',id,amount:'',desc:''};renderModal();openModalEl();}
 function openTransferModal(fromId){
+  if(!S.envelopes.some(e=>e.id===fromId)){alert('Transfers are only between budget envelopes.');return;}
   S.modal={type:'transfer',fromId,toId:null,amount:''};
   renderModal();openModalEl();
 }
 function doTransfer(){
-  const m=S.modal;
-  const allEnvs=[...S.envelopes,...S.savings];
-  const fromEnv=allEnvs.find(e=>e.id===m.fromId);
-  const toEnv=allEnvs.find(e=>e.id===m.toId);
-  const amt=parseFloat(m.amount);
-  if(isNaN(amt)||amt<=0){alert('Enter a valid amount.');return;}
-  if(!toEnv){alert('Select a destination envelope.');return;}
-  if(fromEnv.id===toEnv.id){alert('Cannot transfer to the same envelope.');return;}
-  fromEnv.balance-=amt;
-  toEnv.balance+=amt;
-  const date=fmtShort(today());
-  fromEnv.transactions.unshift({desc:`Transfer to ${toEnv.name}`,amount:-amt,date});
-  toEnv.transactions.unshift({desc:`Transfer from ${fromEnv.name}`,amount:amt,date});
-  closeMB();saveState();render();
+  if(makeTransfer(S.modal.fromId,Number(document.getElementById('transfer-to').value),getCashValue(document.getElementById('xfer-amt'))))finishMutation();
 }
 
 function setModalTitle(t){const el=document.getElementById('modal-title-bar');if(el)el.textContent=t;}
@@ -1508,13 +1517,7 @@ function renderModal(){
         <div><div class="si-label">Goal</div><div class="si-val">${fmt(sav.target)}</div></div>
         <div style="text-align:right"><div class="si-label">Remaining</div><div class="si-val">${fmt(needed)}</div></div>
       </div></div>
-      <div class="form-group"><label class="form-label">Source</label>
-        <div style="display:flex;gap:6px;">
-          <button class="btn${src==='unallocated'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='unallocated';renderModal()">From Unallocated</button>
-          <button class="btn${src==='direct'?' btn-primary':''}" style="flex:1;font-size:12px;" onclick="S.modal.src='direct';renderModal()">Add Directly</button>
-        </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:6px;">${src==='unallocated'?`Unallocated: ${fmt(S.unallocated)}`:'Adds directly — no income log needed.'}</div>
-      </div>
+      <div class="savings-note">Separate savings tracker — deposits do not use budget money.</div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
         <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput=""/ onblur="cashBlur(this)"></div>
       <div class="modal-actions">
@@ -1540,10 +1543,10 @@ function renderModal(){
     const allEnvs=[...S.envelopes,...S.savings];
     const env=allEnvs.find(e=>e.id===m.envId);
     const tx=env.transactions[m.txIdx];
-    const envOpts=allEnvs.map(e=>`<option value="${e.id}"${e.id===m.envId?' selected':''}>${e.icon} ${e.name}</option>`).join('');
+    const envOpts=allEnvs.filter(e=>isSavings(e)===isSavings(env)).map(e=>`<option value="${e.id}"${e.id===m.envId?' selected':''}>${e.icon} ${e.name}</option>`).join('');
     setModalTitle('Edit Transaction');
     inner.innerHTML=`      <div class="form-group"><label class="form-label">Envelope</label>
-        <select class="form-select" onchange="S.modal.newEnvId=parseInt(this.value)">
+        <select class="form-select" id="edittx-env">
           ${envOpts}
         </select>
       </div>
@@ -1559,8 +1562,8 @@ function renderModal(){
         <button class="btn" onclick="closeMB()">Cancel</button>
       </div>`;
   } else if(m.type==='quick'){
-    const allEnvs=[...S.envelopes,...S.savings];
-    const spendEnvs=[...S.envelopes,...S.savings];
+    const allEnvs=S.envelopes;
+    const spendEnvs=S.envelopes;
     const fundEnvs=S.envelopes;
     const qtype=m.qtype;
 
@@ -1571,7 +1574,6 @@ function renderModal(){
       let o='';
       if(fixed.length)o+=`<optgroup label="Fixed Bills">${envOpts(fixed,selected)}</optgroup>`;
       if(variable.length)o+=`<optgroup label="Variable Spending">${envOpts(variable,selected)}</optgroup>`;
-      if(S.savings.length)o+=`<optgroup label="Savings Goals">${S.savings.map(e=>`<option value="${e.id}"${e.id===selected?' selected':''}>${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('')}</optgroup>`;
       return o;
     };
 
@@ -1596,7 +1598,7 @@ function renderModal(){
       const after=selEnv?selEnv.balance-(parseFloat(m.amount)||0):0;
       setModalTitle('Record Spend');
     inner.innerHTML=`        <div class="form-group"><label class="form-label">Envelope</label>
-          <select class="quick-modal-env-select" onchange="S.modal.envId=parseInt(this.value);renderModal()">
+          <select class="quick-modal-env-select" id="q-env" onchange="S.modal.envId=parseInt(this.value);renderModal()">
             ${allOpts(m.envId||spendEnvs[0]?.id)}
           </select></div>
         ${selEnv?`<div class="sib" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:10px;">
@@ -1616,7 +1618,7 @@ function renderModal(){
       const src=m.src||'unallocated';
       setModalTitle('Fund Envelope');
     inner.innerHTML=`        <div class="form-group"><label class="form-label">Envelope</label>
-          <select class="quick-modal-env-select" onchange="S.modal.envId=parseInt(this.value);renderModal()">
+          <select class="quick-modal-env-select" id="q-env" onchange="S.modal.envId=parseInt(this.value);renderModal()">
             ${allOpts(m.envId||S.envelopes[0]?.id)}
           </select></div>
         ${selEnv?`<div class="sib" style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;gap:10px;">
@@ -1759,7 +1761,7 @@ function renderModal(){
         <button class="btn" style="flex:1" onclick="closeMB()">Close</button>
       </div>`;
   } else if(m.type==='transfer'){
-    const allEnvs=[...S.envelopes,...S.savings];
+    const allEnvs=S.envelopes;
     const fromEnv=allEnvs.find(e=>e.id===m.fromId);
     const toId=m.toId||(allEnvs.find(e=>e.id!==m.fromId)||{}).id;
     const toEnv=allEnvs.find(e=>e.id===toId);
@@ -1786,10 +1788,10 @@ function renderModal(){
 
       <div class="form-group">
         <label class="form-label">To Envelope</label>
-        <select class="form-select" onchange="S.modal.toId=parseInt(this.value);renderModal()">
+        <select class="form-select" id="transfer-to" onchange="S.modal.toId=parseInt(this.value);renderModal()">
           ${buildOpts(S.envelopes.filter(e=>e.type==='fixed'),'Fixed Bills')}
           ${buildOpts(S.envelopes.filter(e=>e.type==='variable'),'Variable Spending')}
-          ${buildOpts(S.savings,'Savings Goals')}
+
         </select>
       </div>
 
@@ -1841,7 +1843,7 @@ function doEdit(){
       if(newBal!==oldBal){
         env.balance=newBal;
         const diff=newBal-oldBal;
-        env.transactions.unshift({desc:'Balance Adjustment',amount:diff,date:fmtShort(today()),ts:Date.now()});
+        recordTx(env,{kind:'savings',source:'direct',desc:'Balance Adjustment',amount:money(diff)});
       }
     }
     env.target=parseFloat(m.target)||env.target;
@@ -1859,6 +1861,8 @@ function doEdit(){
 }
 function doDelete(){
   const id=S.modal.id;
+  const account=allAccounts().find(e=>e.id===id);
+  if(account&&account.transactions.some(t=>t.kind==='transfer'||/^Transfer (to|from) /.test(t.desc))){alert('This envelope has transfer history. Keep it so both sides remain linked.');return;}
   S.envelopes=S.envelopes.filter(e=>e.id!==id);S.savings=S.savings.filter(e=>e.id!==id);
   closeMB();saveState();render();
 }
@@ -1871,8 +1875,9 @@ function doEditIncome(){
   const m=S.modal;
   const newAmt=parseFloat(m.amount);
   if(isNaN(newAmt)||newAmt<=0)return;
+  if((S.incomeLog[m.idx].unallocatedEpoch||0)!==(S.unallocatedEpoch||0)){alert('This income was reconciled in a later Budget Session and is kept as history.');return;}
   const oldAmt=S.incomeLog[m.idx].amount;
-  S.unallocated+=(newAmt-oldAmt);
+  S.unallocated=money(S.unallocated+newAmt-oldAmt);
   S.incomeLog[m.idx].amount=newAmt;
   S.incomeLog[m.idx].label=m.label||S.incomeLog[m.idx].label;
   S.incomeLog[m.idx].type=m.itype;
@@ -1881,13 +1886,15 @@ function doEditIncome(){
 }
 function doDeleteIncome(){
   const m=S.modal;
-  S.unallocated-=S.incomeLog[m.idx].amount;
+  if((S.incomeLog[m.idx].unallocatedEpoch||0)!==(S.unallocatedEpoch||0)){alert('This income was reconciled in a later Budget Session and is kept as history.');return;}
+  S.unallocated=money(S.unallocated-S.incomeLog[m.idx].amount);
   S.incomeLog.splice(m.idx,1);
   closeMB();saveState();render();
   renderIncomePanel();
 }
 function deleteIncome(idx){
-  S.unallocated-=S.incomeLog[idx].amount;
+  if((S.incomeLog[idx].unallocatedEpoch||0)!==(S.unallocatedEpoch||0)){alert('This income was reconciled in a later Budget Session and is kept as history.');return;}
+  S.unallocated=money(S.unallocated-S.incomeLog[idx].amount);
   S.incomeLog.splice(idx,1);
   saveState();render();
   renderIncomePanel();
@@ -1912,12 +1919,9 @@ function updateSavSpendPreview(bal){
   if(el){el.textContent=fmt(after);el.className='si-val'+(after<0?' warn':'');}
 }
 function doSpend(){
-  const m=S.modal;const env=[...S.envelopes,...S.savings].find(e=>e.id===m.id);
-  const amt=getCashValue(document.getElementById('spend-amt'));
-  const desc=document.getElementById('spend-desc').value;
-  if(isNaN(amt)||amt<=0)return;
-  env.balance-=amt;env.transactions.unshift({desc:desc||'Purchase',amount:-amt,date:fmtShort(today()),ts:Date.now()});
-  closeMB();saveState();render();
+  const env=S.envelopes.find(e=>e.id===S.modal.id),amt=money(getCashValue(document.getElementById('spend-amt')));
+  if(!env||!validAmount(amt))return;
+  env.balance=money(env.balance-amt);recordTx(env,{kind:'spend',desc:document.getElementById('spend-desc').value||'Purchase',amount:-amt});finishMutation();
 }
 function setFundDir(dir,bal,unalloc){
   S.modal.dir=dir;
@@ -1935,46 +1939,27 @@ function updateFundPreview(bal,unalloc){
   if(el){el.textContent=fmt(after);el.style.color=after<0?'var(--danger)':'var(--text)';}
 }
 function doFund(){
-  const m=S.modal;const env=S.envelopes.find(e=>e.id===m.id);
-  const amt=getCashValue(document.getElementById('fu-a'));
-  if(isNaN(amt)||amt<=0)return;
-  const dir=m.dir||'add';
-  const src=m.src||'unallocated';
-  if(dir==='add'){
-    if(src==='unallocated'){
-      if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
-      S.unallocated-=amt;
-    }
-    env.balance+=amt;
-    env.transactions.unshift({desc:src==='direct'?'Add Directly':'Funded',amount:amt,date:fmtShort(today()),ts:Date.now()});
-  } else {
-    if(amt>env.balance){alert('Not enough balance in this envelope.');return;}
-    env.balance-=amt;S.unallocated+=amt;
-    env.transactions.unshift({desc:'Returned to unallocated',amount:-amt,date:fmtShort(today()),ts:Date.now()});
-  }
-  closeMB();saveState();render();
+  const m=S.modal,env=S.envelopes.find(e=>e.id===m.id),amt=money(getCashValue(document.getElementById('fu-a')));
+  if(!env||!validAmount(amt))return;
+  const remove=m.dir==='sub',src=remove?'unallocated':(m.src||'unallocated');
+  if(remove&&amt>env.balance){alert('Not enough balance in this envelope.');return;}
+  if(!remove&&src==='unallocated'&&amt>S.unallocated){alert('Not enough unallocated funds.');return;}
+  const signed=remove?-amt:amt;
+  env.balance=money(env.balance+signed);
+  if(src==='unallocated')S.unallocated=money(S.unallocated-signed);
+  recordTx(env,{kind:'fund',source:src,desc:remove?'Returned to unallocated':src==='direct'?'Added Directly':'Funded',amount:signed});finishMutation();
 }
 function doSavFund(){
-  const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
-  const amt=getCashValue(document.getElementById('sf-a'));
-  const src=m.src||'unallocated';
-  if(isNaN(amt)||amt<=0)return;
-  if(src==='unallocated'){
-    if(amt>S.unallocated){alert('Not enough unallocated funds.');return;}
-    S.unallocated-=amt;
-  }
-  sav.balance+=amt;
-  sav.transactions.unshift({desc:src==='direct'?'Added Directly':'Deposit',amount:amt,date:fmtShort(today()),ts:Date.now()});
-  closeMB();saveState();render();
+  const sav=S.savings.find(e=>e.id===S.modal.id),amt=money(getCashValue(document.getElementById('sf-a')));
+  if(!sav||!validAmount(amt))return;
+  sav.balance=money(sav.balance+amt);
+  recordTx(sav,{kind:'savings',source:'direct',desc:'Deposit',amount:amt});finishMutation();
 }
 function doSavSpend(){
-  const m=S.modal;const sav=S.savings.find(e=>e.id===m.id);
-  const amt=getCashValue(document.getElementById('savspend-amt'));
-  const desc=document.getElementById('savspend-desc').value;
-  if(isNaN(amt)||amt<=0)return;
-  sav.balance-=amt;
-  sav.transactions.unshift({desc:desc||'Withdrawal',amount:-amt,date:fmtShort(today()),ts:Date.now()});
-  closeMB();saveState();render();
+  const sav=S.savings.find(e=>e.id===S.modal.id),amt=money(getCashValue(document.getElementById('savspend-amt')));
+  if(!sav||!validAmount(amt))return;
+  sav.balance=money(sav.balance-amt);
+  recordTx(sav,{kind:'savings',source:'direct',desc:document.getElementById('savspend-desc').value||'Withdrawal',amount:-amt});finishMutation();
 }
 function toggleExpand(id){openDetail(id);}
 
@@ -2033,10 +2018,7 @@ function renderDetailBody(env){
         <div class="detail-action-label">Withdraw</div>
         <div class="detail-action-sub">Pull from savings</div>
       </button>
-      <button class="detail-action-btn detail-action-edit" onclick="closeDetail();openTransferModal(${env.id})">
-        <div><div class="detail-action-label">⇄ Transfer</div><div class="detail-action-sub">Move between envelopes</div></div>
-        <span style="color:var(--text3);font-size:18px;">›</span>
-      </button>
+
     </div>`;
   } else if(isFixed){
     const pct=Math.min(100,Math.round((env.balance/env.target)*100));
@@ -2262,66 +2244,49 @@ function openEditTxModal(envId,txIdx){
 }
 
 function doEditTx(){
-  const m=S.modal;
-  const allEnvs=[...S.envelopes,...S.savings];
-  const env=allEnvs.find(e=>e.id===m.envId);
-  if(!env)return;
-  const tx=env.transactions[m.txIdx];
-  const newAmt=getCashValue(document.getElementById('edittx-amt'));
-  const newDesc=document.getElementById('edittx-desc').value||tx.desc;
-  if(isNaN(newAmt)||newAmt<=0)return;
-  const oldSigned=tx.amount;
-  const newSigned=m.isNeg?-newAmt:newAmt;
-  const newEnvId=m.newEnvId||m.envId;
-
-  if(newEnvId!==m.envId){
-    // Moving to different envelope
-    const newEnv=allEnvs.find(e=>e.id===newEnvId);
-    if(!newEnv)return;
-    // Reverse from old envelope
-    env.balance-=oldSigned;
-    env.transactions.splice(m.txIdx,1);
-    // Add to new envelope
-    newEnv.balance+=newSigned;
-    newEnv.transactions.unshift({desc:newDesc,amount:newSigned,date:tx.date,ts:tx.ts||Date.now()});
-  } else {
-    // Same envelope, just update
-    env.balance+=(newSigned-oldSigned);
-    tx.amount=newSigned;
-    tx.desc=newDesc;
+  const m=S.modal,env=allAccounts().find(e=>e.id===m.envId),tx=env&&env.transactions[m.txIdx];
+  if(!tx||!canChangeTx(env,tx))return;
+  const amount=money(getCashValue(document.getElementById('edittx-amt'))),dest=allAccounts().find(e=>e.id===Number(document.getElementById('edittx-env').value));
+  if(!validAmount(amount)||!dest)return;
+  if(isSavings(env)!==isSavings(dest)){alert('Savings and budget transactions must stay separate.');return;}
+  const signed=tx.amount<0?-amount:amount,desc=document.getElementById('edittx-desc').value||tx.desc;
+  if(tx.kind==='session'&&dest!==env){alert('A Budget Session adjustment stays with its original envelope.');return;}
+  let pair=null;
+  if(tx.kind==='transfer'){
+    pair=transferPartner(env,tx);
+    if(!pair||!canChangeTx(pair.env,pair.tx)){if(!pair)alert('The matching transfer is missing or ambiguous. No balances were changed.');return;}
+    if(dest===pair.env){alert('A transfer needs two different envelopes.');return;}
   }
-  closeMB();saveState();render();
-  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
+  const oldEffect=unallocatedEffect(tx),newEffect=tx.source==='unallocated'?-signed:0;
+  const nextUnallocated=money(S.unallocated-oldEffect+newEffect);
+  if(newEffect<oldEffect&&nextUnallocated<0){alert('Not enough unallocated funds for that change.');return;}
+  env.balance=money(env.balance-tx.amount);dest.balance=money(dest.balance+signed);
+  S.unallocated=nextUnallocated;
+  if(dest!==env){env.transactions.splice(m.txIdx,1);dest.transactions.unshift(tx);tx.epoch=dest.epoch||0;}
+  tx.amount=signed;tx.desc=desc;
+  if(!tx.kind)tx.kind=isSavings(dest)?'savings':'entry';
+  if(pair){
+    pair.env.balance=money(pair.env.balance-pair.tx.amount-signed);pair.tx.amount=-signed;
+    tx.otherId=pair.env.id;pair.tx.otherId=dest.id;
+    tx.desc=(signed<0?'Transfer to ':'Transfer from ')+pair.env.name;
+    pair.tx.desc=(signed<0?'Transfer from ':'Transfer to ')+dest.name;
+  }
+  finishMutation();
 }
 
 function doDeleteTx(){
-  const m=S.modal;
-  const allEnvs=[...S.envelopes,...S.savings];
-  const env=allEnvs.find(e=>e.id===m.envId);
-  if(!env)return;
-  const tx=env.transactions[m.txIdx];
-  if(!tx)return;
-  // Reverse this transaction's effect on balance
-  env.balance-=tx.amount;
-  env.transactions.splice(m.txIdx,1);
-  // If it's a transfer, reverse the paired transaction too
-  if(tx.desc.startsWith('Transfer to ')){
-    const toName=tx.desc.replace('Transfer to ','');
-    const paired=allEnvs.find(e=>e.name===toName);
-    if(paired){
-      const pidx=paired.transactions.findIndex(t=>t.desc===`Transfer from ${env.name}`&&t.amount===-tx.amount);
-      if(pidx>=0){paired.balance-=paired.transactions[pidx].amount;paired.transactions.splice(pidx,1);}
-    }
-  } else if(tx.desc.startsWith('Transfer from ')){
-    const fromName=tx.desc.replace('Transfer from ','');
-    const paired=allEnvs.find(e=>e.name===fromName);
-    if(paired){
-      const pidx=paired.transactions.findIndex(t=>t.desc===`Transfer to ${env.name}`&&t.amount===-tx.amount);
-      if(pidx>=0){paired.balance-=paired.transactions[pidx].amount;paired.transactions.splice(pidx,1);}
-    }
+  const m=S.modal,env=allAccounts().find(e=>e.id===m.envId),tx=env&&env.transactions[m.txIdx];
+  if(!tx||!canChangeTx(env,tx))return;
+  let pair=null;
+  if(tx.kind==='transfer'){
+    pair=transferPartner(env,tx);
+    if(!pair||!canChangeTx(pair.env,pair.tx)){if(!pair)alert('The matching transfer is missing or ambiguous. No balances were changed.');return;}
   }
-  closeMB();saveState();render();
-  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
+  const nextUnallocated=money(S.unallocated-unallocatedEffect(tx));
+  if(unallocatedEffect(tx)>0&&nextUnallocated<0){alert('The returned money has already been allocated. Free that amount before deleting this return.');return;}
+  env.balance=money(env.balance-tx.amount);env.transactions.splice(m.txIdx,1);S.unallocated=nextUnallocated;
+  if(pair){pair.env.balance=money(pair.env.balance-pair.tx.amount);pair.env.transactions.splice(pair.env.transactions.indexOf(pair.tx),1);}
+  finishMutation();
 }
 
 // ---- CALENDAR ----
