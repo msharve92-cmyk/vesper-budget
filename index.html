@@ -570,7 +570,37 @@ function getDaysLeft(dueDay){
   });
   return minDays;
 }
+const FREQ_MONTHS={bimonthly:2,quarterly:3,semiannual:6,annual:12};
+function rollForward(iso,freq){
+  const t=today();t.setHours(0,0,0,0);
+  const anchor=new Date(iso+'T00:00:00');
+  if(!Number.isFinite(anchor.getTime()))return null;
+  let d=new Date(anchor);
+  if(freq==='biweekly'){
+    while(d<t)d.setDate(d.getDate()+14);
+  }else{
+    const step=FREQ_MONTHS[freq];
+    if(!step)return d;
+    let cycle=0;
+    while(d<t){
+      cycle++;
+      const first=new Date(anchor.getFullYear(),anchor.getMonth()+step*cycle,1);
+      const last=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();
+      d=new Date(first.getFullYear(),first.getMonth(),Math.min(anchor.getDate(),last));
+    }
+  }
+  return d;
+}
+function getEnvDaysLeft(env){
+  if(env.nextDue&&env.dueFreq){
+    const due=rollForward(env.nextDue,env.dueFreq);
+    if(due){const t=today();return Math.round((Date.UTC(due.getFullYear(),due.getMonth(),due.getDate())-Date.UTC(t.getFullYear(),t.getMonth(),t.getDate()))/86400000);}
+  }
+  const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
+  return days.length?getDaysLeft(days):null;
+}
 function getDueDaysLeft(env){
+  if(env.nextDue&&env.dueFreq&&rollForward(env.nextDue,env.dueFreq))return[{day:null,daysLeft:getEnvDaysLeft(env)}];
   const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
   if(!days.length)return[];
   const t=today();t.setHours(0,0,0,0);
@@ -786,8 +816,8 @@ function getSpendingAlerts(){
     }
   });
   S.envelopes.filter(e=>e.type==='fixed').forEach(env=>{
-    if(env.dueDay){
-      const dl=getDaysLeft(env.dueDay);
+    if(env.dueDay||(env.dueDays&&env.dueDays.length)||(env.nextDue&&env.dueFreq)){
+      const dl=getEnvDaysLeft(env);
       if(dl<=3&&env.balance<env.target){
         alerts.push({envId:env.id,icon:env.icon,name:env.name,msg:`${env.icon} ${env.name} due in ${dl}d — ${fmt(Math.max(0,env.target-env.balance))} short`,level:'danger'});
       }
@@ -961,8 +991,8 @@ function startSessionAllocation(){
     let suggested=env.target;
     let urgent=false;
     let note='';
-    if(env.dueDay){
-      const dl=getDaysLeft(env.dueDay);
+    if(env.dueDay||(env.dueDays&&env.dueDays.length)||(env.nextDue&&env.dueFreq)){
+      const dl=getEnvDaysLeft(env);
       const daysToNextPay=nextPay?daysUntil(nextPay.date):999;
       if(dl<=daysToNextPay||dl<=3){
         // Due before next pay — need full amount now
@@ -1399,14 +1429,18 @@ function renderModal(){
         <input class="form-input" type="text" inputmode="text" placeholder="e.g. 1 or 1, 15" value="${(m.dueDays||env.dueDays||[]).join(', ')||m.dueDay||env.dueDay||''}" oninput="S.modal.dueDaysRaw=this.value"/>
         <div style="font-size:10px;color:var(--text3);margin-top:4px;">Separate multiple dates with a comma</div>
       </div>
-      <div class="form-group"><label class="form-label">Frequency</label>
-        <select class="form-select" onchange="S.modal.dueFreq=this.value">
-          <option value="" ${!(m.dueFreq||env.dueFreq)?'selected':''}>None</option>
-          <option value="biweekly" ${(m.dueFreq||env.dueFreq)==='biweekly'?'selected':''}>Biweekly</option>
-          <option value="bimonthly" ${(m.dueFreq||env.dueFreq)==='bimonthly'?'selected':''}>Every 2 Months</option>
-          <option value="quarterly" ${(m.dueFreq||env.dueFreq)==='quarterly'?'selected':''}>Every 3 Months</option>
-          <option value="semiannual" ${(m.dueFreq||env.dueFreq)==='semiannual'?'selected':''}>Every 6 Months</option>
-          <option value="annual" ${(m.dueFreq||env.dueFreq)==='annual'?'selected':''}>Yearly</option>
+      <div class="form-group"><label class="form-label" for="edit-next-due">Next Due Date (for non-monthly bills)</label>
+        <input class="form-input" id="edit-next-due" type="date" value="${m.nextDue!==undefined?m.nextDue:(env.nextDue||'')}" oninput="S.modal.nextDue=this.value" style="color-scheme:dark;"/>
+        <div style="font-size:10px;color:var(--text3);margin-top:4px;">Enter the actual next due date, including the year. The countdown rolls forward by the frequency below.</div>
+      </div>
+      <div class="form-group"><label class="form-label" for="edit-due-freq">Frequency</label>
+        <select class="form-select" id="edit-due-freq" onchange="S.modal.dueFreq=this.value">
+          <option value="" ${!(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)?'selected':''}>None</option>
+          <option value="biweekly" ${(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)==='biweekly'?'selected':''}>Biweekly</option>
+          <option value="bimonthly" ${(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)==='bimonthly'?'selected':''}>Every 2 Months</option>
+          <option value="quarterly" ${(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)==='quarterly'?'selected':''}>Every 3 Months</option>
+          <option value="semiannual" ${(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)==='semiannual'?'selected':''}>Every 6 Months</option>
+          <option value="annual" ${(m.dueFreq!==undefined?m.dueFreq:env.dueFreq)==='annual'?'selected':''}>Yearly</option>
         </select>
       </div>
       <div class="modal-actions">
@@ -1817,7 +1851,9 @@ function doEdit(){
       env.dueDays=parsed.length?parsed:null;
       env.dueDay=parsed.length?parsed[0]:null;
     }
-    if(m.dueFreq)env.dueFreq=m.dueFreq;
+    // Read the rendered fields on Save; do not depend on select change events.
+    env.dueFreq=document.getElementById('edit-due-freq').value||null;
+    env.nextDue=document.getElementById('edit-next-due').value||null;
   }
   closeMB();saveState();render();
 }
@@ -2009,7 +2045,7 @@ function renderDetailBody(env){
     const needed=Math.max(0,env.target-env.balance);
     heroSub=`target: ${fmt(env.target)}`;
     const _dueDays=env.dueDays||(env.dueDay?[env.dueDay]:[]);
-    if(_dueDays.length){
+    if(_dueDays.length||(env.nextDue&&env.dueFreq)){
       const _upcoming=getDueDaysLeft(env);
       heroSub+=' · '+_upcoming.map(u=>`due ${u.daysLeft===0?'today':'in '+u.daysLeft+'d'}`).join(', ');
       if(env.dueFreq)heroSub+=' · '+getFrequencyLabel(env.dueFreq);
