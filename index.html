@@ -11,6 +11,7 @@
 <meta name="description" content="Personal envelope budgeting app"/>
 <link rel="manifest" href="vesper.webmanifest"/>
 <title>Vesper Budget</title>
+<meta name="vesper-build" content="2026-11-12-suggested-set"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -558,18 +559,49 @@ function getPaydays(count){
   return count?days.slice(0,count):days;
 }
 
-function getDaysLeft(dueDay){
-  const days=Array.isArray(dueDay)?dueDay:[dueDay];
+function countScheduledPaydaysBefore(due){
+  const start=today();start.setHours(0,0,0,0);
+  if(!(due instanceof Date)||!Number.isFinite(due.getTime())||due<=start)return 0;
+  let count=0;
+  if(getBiweeklyEnabled()){
+    const anchor=getAnchor();
+    if(Number.isFinite(anchor.getTime())){
+      const diff=Math.round((Date.UTC(start.getFullYear(),start.getMonth(),start.getDate())-Date.UTC(anchor.getFullYear(),anchor.getMonth(),anchor.getDate()))/86400000);
+      const remainder=((diff%14)+14)%14;
+      let d=addDays(start,remainder===0?14:14-remainder);
+      while(d<due){count++;d=addDays(d,14);}
+    }
+  }
+  if(getRetainerEnabled()){
+    const days=getRetainerDays();
+    for(let m=0;m<48;m++){
+      const first=new Date(start.getFullYear(),start.getMonth()+m,1);
+      if(first>=due)break;
+      for(const day of days){
+        const n=Number(day);
+        if(!Number.isInteger(n)||n<1||n>31)continue;
+        const d=new Date(first.getFullYear(),first.getMonth(),n);
+        if(d.getMonth()===first.getMonth()&&d>start&&d<due)count++;
+      }
+    }
+  }
+  return count;
+}
+
+function nextMonthlyDue(day){
   const t=today();t.setHours(0,0,0,0);
-  let minDays=999;
-  days.forEach(d=>{
-    const due=new Date(t.getFullYear(),t.getMonth(),d);
-    due.setHours(0,0,0,0);
-    if(due<=t)due.setMonth(due.getMonth()+1);
-    const dl=Math.ceil((due-t)/86400000);
-    if(dl<minDays)minDays=dl;
-  });
-  return minDays;
+  function inMonth(offset){
+    const first=new Date(t.getFullYear(),t.getMonth()+offset,1);
+    const last=new Date(first.getFullYear(),first.getMonth()+1,0).getDate();
+    return new Date(first.getFullYear(),first.getMonth(),Math.min(day,last));
+  }
+  const due=inMonth(0);return due<t?inMonth(1):due;
+}
+function calendarDaysLeft(due){
+  const t=today();return Math.round((Date.UTC(due.getFullYear(),due.getMonth(),due.getDate())-Date.UTC(t.getFullYear(),t.getMonth(),t.getDate()))/86400000);
+}
+function getDaysLeft(dueDay){
+  return Math.min(...(Array.isArray(dueDay)?dueDay:[dueDay]).map(day=>calendarDaysLeft(nextMonthlyDue(day))));
 }
 const FREQ_MONTHS={bimonthly:2,quarterly:3,semiannual:6,annual:12};
 function rollForward(iso,freq){
@@ -603,14 +635,7 @@ function getEnvDaysLeft(env){
 function getDueDaysLeft(env){
   if(env.nextDue&&env.dueFreq&&rollForward(env.nextDue,env.dueFreq))return[{day:null,daysLeft:getEnvDaysLeft(env)}];
   const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
-  if(!days.length)return[];
-  const t=today();t.setHours(0,0,0,0);
-  return days.map(d=>{
-    const due=new Date(t.getFullYear(),t.getMonth(),d);
-    due.setHours(0,0,0,0);
-    if(due<=t)due.setMonth(due.getMonth()+1);
-    return{day:d,daysLeft:Math.ceil((due-t)/86400000)};
-  }).sort((a,b)=>a.daysLeft-b.daysLeft);
+  return days.map(day=>({day,daysLeft:calendarDaysLeft(nextMonthlyDue(day))})).sort((a,b)=>a.daysLeft-b.daysLeft);
 }
 function getFrequencyLabel(freq){
   const map={monthly:'Monthly',biweekly:'Biweekly',bimonthly:'Every 2 Months',quarterly:'Every 3 Months',semiannual:'Every 6 Months',annual:'Yearly'};
@@ -982,13 +1007,12 @@ function updateSessionTotal(val){
   const amt=parseFloat(val)||0;
   const prev=document.getElementById('session-total-preview');
   if(amt>0){
-    const fixed=S.envelopes.filter(e=>e.type==='fixed');
-    const billsTotal=fixed.reduce((a,e)=>a+e.target,0);
-    const remaining=amt-billsTotal;
+    const existing=S.envelopes.reduce((a,e)=>a+(Number(e.balance)||0),0);
+    const remaining=money(amt-existing);
     prev.innerHTML=`<div style="background:var(--card);border:1px solid var(--border);border-radius:9px;padding:11px 13px;font-size:12px;color:var(--text2);">
       <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Total entering session</span><span style="color:var(--rose);font-weight:600;">${fmt(amt)}</span></div>
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Fixed bills total</span><span>${fmt(billsTotal)}</span></div>
-      <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid var(--border);"><span>Left for spending + new savings</span><span style="color:${remaining>=0?'var(--success)':'var(--danger)'};">${fmt(remaining)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;"><span>Already in envelopes</span><span>${fmt(existing)}</span></div>
+      <div style="display:flex;justify-content:space-between;padding-top:5px;border-top:1px solid var(--border);"><span>Available for new allocations (before adjustments)</span><span style="color:${remaining>=0?'var(--success)':'var(--danger)'};">${fmt(remaining)}</span></div>
     </div>`;
   } else {
     prev.innerHTML='';
@@ -1000,48 +1024,43 @@ function startSessionAllocation(){
   if(!validAmount(amt)){alert('Enter your total balance to continue.');return;}
 
   const allocs=[];
-  const nextPay=getPaydays(1)[0];
-
-  // Fixed bills
-  S.envelopes.filter(e=>e.type==='fixed').forEach(env=>{
-    let suggested=env.target;
-    let urgent=false;
-    let note='';
-    if(env.dueDay||(env.dueDays&&env.dueDays.length)||(env.nextDue&&env.dueFreq)){
-      const dl=getEnvDaysLeft(env);
-      const daysToNextPay=nextPay?daysUntil(nextPay.date):999;
-      if(dl<=daysToNextPay||dl<=3){
-        // Due before next pay — need full amount now
-        suggested=env.target;
-        urgent=true;
-        const _allDays=env.dueDays||(env.dueDay?[env.dueDay]:[]);
-      note=_allDays.length>1?`Due in ${dl}d (${_allDays.join(', ')})`:`Due in ${dl}d`;
-      if(env.dueFreq)note+=' · '+getFrequencyLabel(env.dueFreq);
-      } else {
-        // Due after next pay — only fund proportional share now
-        // How many pay periods until due?
-        const payFreq=S.paySchedule&&S.paySchedule.biweeklyEnabled?14:30;
-        const paysUntilDue=Math.max(1,Math.ceil(dl/payFreq));
-        const perPay=Math.ceil((env.target/paysUntilDue)*100)/100;
-        suggested=Math.min(perPay,env.target);
-        urgent=false;
-        note=`Due in ${dl}d · next pay in ${daysToNextPay}d`;
-      }
-    } else {
-      suggested=env.target;
-      note='monthly bill';
+  // A session reconciles the full account total; existing envelope money is already
+  // included in that total. Suggestions are ADDITIONAL contributions, never balances.
+  function suggestedContribution(env){
+    const target=Math.max(0,money(Number(env.target)||0));
+    const balance=money(Number(env.balance)||0);
+    const shortfall=Math.max(0,money(target-balance));
+    const dl=getEnvDaysLeft(env);
+    if(!shortfall)return {suggested:0,urgent:false,note:'Fully funded'};
+    if(dl===null){
+      const scheduled=getPaydays(2);
+      const installment=scheduled.length?Math.ceil(target/2*100)/100:shortfall;
+      return {suggested:Math.min(shortfall,money(installment)),urgent:false,note:'No due date · estimated payday contribution'};
     }
-    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'fixed',suggested,amount:env.balance,urgent,note,target:env.target});
+    const due=addDays(new Date(today().setHours(0,0,0,0)),dl);
+    // Count actual configured paydays strictly before the due date; this session
+    // is one funding opportunity, plus any future scheduled paydays.
+    const futurePays=countScheduledPaydaysBefore(due);
+    const suggested=money(Math.ceil(shortfall/(futurePays+1)*100)/100);
+    const urgent=futurePays===0;
+    return {suggested:urgent?shortfall:suggested,urgent,
+      note:`Due in ${dl}d · ${futurePays} payday${futurePays===1?'':'s'} before due`};
+  }
+  S.envelopes.filter(e=>e.type==='fixed').forEach(env=>{
+    const advice=suggestedContribution(env);
+    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'fixed',
+      suggested:advice.suggested,amount:money(env.balance),startBalance:money(env.balance),urgent:advice.urgent,
+      note:advice.note,target:env.target});
   });
-
-  // Variable — start at 0, suggest target
   S.envelopes.filter(e=>e.type==='variable').forEach(env=>{
-    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'variable',suggested:env.target||0,amount:env.balance,urgent:false,note:'variable spending',target:env.target});
+    allocs.push({id:env.id,icon:env.icon,name:env.name,type:'variable',
+      suggested:Math.max(0,money((Number(env.target)||0)-(Number(env.balance)||0))),
+      amount:money(env.balance),startBalance:money(env.balance),urgent:false,note:'Remaining spending target',target:env.target});
   });
 
   // Only NEW deposits are allocated; existing savings never enter the budget.
   S.savings.forEach(sav=>{
-    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:0,urgent:false,note:'New deposit · already saved '+fmt(sav.balance),target:Math.max(0,money(sav.target-sav.balance))});
+    allocs.push({id:sav.id,icon:sav.icon,name:sav.name,type:'savings',suggested:0,amount:0,startBalance:0,urgent:false,note:'New deposit · already saved '+fmt(sav.balance),target:Math.max(0,money(sav.target-sav.balance))});
   });
   BS={total:amt,allocs};
   renderSessionAllocation();
@@ -1065,13 +1084,14 @@ function renderSessionAllocation(){
 
   const buildRow=({a,idx})=>{
     const amt=parseFloat(a.amount||0);
-    const hasSuggestion=a.suggested>0;
+    const dueSuggestion=remainingSuggestion(a);
+    const hasSuggestion=dueSuggestion>0;
     return`
     <div class="session-row${a.urgent?' urgent':''}" onclick="openCalcKeyboard(${idx})" style="cursor:pointer;">
       <div class="session-row-icon">${a.icon}</div>
       <div class="session-row-info">
         <div class="session-row-name">${a.name}${a.urgent?` <span style="font-size:9px;color:var(--danger);font-weight:700;">⚠ due soon</span>`:''}</div>
-        <div class="session-row-sub">${a.note}${hasSuggestion?` · <span style="color:var(--rose);font-weight:700;">suggest ${fmt(a.suggested)}</span>`:''}</div>
+        <div class="session-row-sub">${a.note}${hasSuggestion?` · <span style="color:var(--rose);font-weight:700;">suggest ${fmt(dueSuggestion)}</span>`:''}</div>
       </div>
       <div style="font-family:'Nunito',sans-serif;font-size:18px;font-weight:900;color:${amt===0?'var(--text3)':'var(--rose)'};flex-shrink:0;">${fmt(amt)}</div>
     </div>`;};
@@ -1081,7 +1101,7 @@ function renderSessionAllocation(){
       <div class="session-header-title">Allocate Funds</div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px;">
         <div class="session-header-sub">Adjust each envelope. Every dollar must be assigned.</div>
-        <button class="btn btn-sm" onclick="clearAllEnvelopes()" style="flex-shrink:0;margin-left:10px;color:var(--danger);border-color:rgba(196,112,112,.3);">🗑 Clear All</button>
+        <button class="btn btn-sm" onclick="clearAllEnvelopes()" style="flex-shrink:0;margin-left:10px;">↺ Reset edits</button>
       </div>
       <div class="session-balance-row">
         <div>
@@ -1126,8 +1146,11 @@ function adjustSessionAlloc(idx,dir){
 let calcState={activeIdx:null,value:'0',op:null,opValue:null};
 function openCalcKeyboard(idx){
   if(!BS||!BS.allocs||!BS.allocs[idx])return;
-  // Start display at 0, not the existing amount
-  calcState={activeIdx:idx,value:'0',op:null,opValue:null};
+  // Preview the suggested addition; SET is the only action that applies it.
+  const a=BS.allocs[idx];
+  const addition=Math.min(remainingSuggestion(a),Math.max(0,getSessionRemaining()));
+  const proposed=money((Number(a.amount)||0)+addition);
+  calcState={activeIdx:idx,value:String(proposed),op:null,opValue:null,replaceOnType:true};
   updateCalcDisplay();
   updateCalcChips(idx);
   document.getElementById('calc-keyboard').style.display='block';
@@ -1169,24 +1192,35 @@ function updateCalcDisplay(){
 function updateCalcChips(idx){
   const a=BS.allocs[idx];
   const prev=parseFloat(a.amount)||0;
-  const suggested=parseFloat(a.suggested)||0;
+  const suggested=remainingSuggestion(a);
   const rem=getSessionRemaining();
   const chips=document.getElementById('calc-chips');
   chips.innerHTML=`
     <div class="calc-chip" onclick="calcSetVal(0)">$0 · empty</div>
-    ${suggested>0?`<div class="calc-chip suggested" onclick="calcSetVal(${suggested})">✦ ${fmt(suggested)} suggested</div>`:''}
+    ${suggested>0?`<div class="calc-chip suggested" onclick="calcAddSuggested(${idx})">✦ +${fmt(suggested)} suggested</div>`:''}
     ${a.target>0&&a.target!==suggested?`<div class="calc-chip" onclick="calcSetVal(${a.target})">${fmt(a.target)} target</div>`:''}
-    ${rem>0?`<div class="calc-chip" onclick="calcSetVal(${Math.round((prev+rem)*100)/100})">${fmt(rem)} remaining</div>`:''}
+    ${rem>0?`<div class="calc-chip" onclick="calcSetVal(${Math.round((prev+rem)*100)/100})">+${fmt(rem)} available</div>`:''}
     ${prev>0?`<div class="calc-chip" onclick="calcSetVal(${prev})">${fmt(prev)} current</div>`:''}
   `;
 }
+function remainingSuggestion(a){
+  return Math.max(0,money((Number(a.startBalance)||0)+(Number(a.suggested)||0)-(Number(a.amount)||0)));
+}
+function calcAddSuggested(idx){
+  const a=BS.allocs[idx];
+  const current=Number(a.amount)||0;
+  const available=Math.max(0,getSessionRemaining());
+  calcSetVal(money(current+Math.min(remainingSuggestion(a),available)));
+}
 function calcSetVal(v){
   const n=parseFloat(v)||0;
+  calcState.replaceOnType=true;
   calcState.value=n===0?'0':String(n);
   calcState.op=null;calcState.opValue=null;
   updateCalcDisplay();
 }
 function calcKey(k){
+  if(calcState.replaceOnType){calcState.value='0';calcState.replaceOnType=false;}
   const v=calcState.value;
   if(v==='0'||v===''){ calcState.value=(k==='.'?'0.':k); }
   else if(k==='.'&&v.includes('.'))return;
@@ -1194,6 +1228,7 @@ function calcKey(k){
   updateCalcDisplay();
 }
 function calcDel(){
+  calcState.replaceOnType=false;
   if(calcState.value.length<=1)calcState.value='0';
   else calcState.value=calcState.value.slice(0,-1);
   updateCalcDisplay();
@@ -1208,6 +1243,7 @@ function calcOp(op){
     calcState.opValue=cur;
   }
   calcState.op=op;
+  calcState.replaceOnType=true;
   calcState.value='0';
   updateCalcDisplay();
 }
@@ -1224,7 +1260,8 @@ function calcConfirm(){
 }
 function clearAllEnvelopes(){
   if(!BS)return;
-  BS.allocs.forEach(a=>{ a.amount=0; });
+  if(!confirm('Discard this session’s allocation edits? Existing envelope balances will be preserved.'))return;
+  BS.allocs.forEach(a=>{ a.amount=a.startBalance||0; });
   renderSessionAllocation();
 }
 
