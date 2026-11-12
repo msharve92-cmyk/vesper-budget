@@ -11,7 +11,7 @@
 <meta name="description" content="Personal envelope budgeting app"/>
 <link rel="manifest" href="vesper.webmanifest"/>
 <title>Vesper Budget</title>
-<meta name="vesper-build" content="2026-11-12-suggested-set"/>
+<meta name="vesper-build" content="2026-11-12-visible-target"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -2098,7 +2098,7 @@ function renderDetailBody(env){
   } else {
     // Variable
     const totalSpent=env.transactions.filter(t=>t.amount<0).reduce((a,t)=>a+Math.abs(t.amount),0);
-    heroSub='available to spend';
+    heroSub=`available to spend<br><span style="display:inline-block;margin-top:8px;color:var(--text2);">Monthly target: ${env.target>0?fmt(env.target):'Not set'}</span>`;
     statsHtml=`<div class="detail-stat-row">
       <div class="detail-stat"><div class="detail-stat-label">Available</div><div class="detail-stat-val">${fmt(env.balance)}</div></div>
       <div class="detail-stat"><div class="detail-stat-label">Spent</div><div class="detail-stat-val">${fmt(totalSpent)}</div></div>
