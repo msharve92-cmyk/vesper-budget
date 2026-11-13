@@ -11,7 +11,7 @@
 <meta name="description" content="Personal envelope budgeting app"/>
 <link rel="manifest" href="vesper.webmanifest"/>
 <title>Vesper Budget</title>
-<meta name="vesper-build" content="2026-11-12-visible-target"/>
+<meta name="vesper-build" content="2026-11-13-upcoming-inline-undo"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -452,8 +452,8 @@ html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;backgroun
     <span class="bnav-fab">+</span>
   </button>
   <button class="bottom-nav-item" id="bnav-income" onclick="showTab('income',this)" data-tab="income">
-    <span class="bnav-icon">💵</span>
-    <span class="bnav-label">Income</span>
+    <span class="bnav-icon">◷</span>
+    <span class="bnav-label">Upcoming</span>
   </button>
   <button class="bottom-nav-item" id="bnav-transactions" onclick="showTab('transactions',this)" data-tab="transactions">
     <span class="bnav-icon">≡</span>
@@ -624,19 +624,10 @@ function rollForward(iso,freq){
   }
   return d;
 }
-function getEnvDaysLeft(env){
-  if(env.nextDue&&env.dueFreq){
-    const due=rollForward(env.nextDue,env.dueFreq);
-    if(due){const t=today();return Math.round((Date.UTC(due.getFullYear(),due.getMonth(),due.getDate())-Date.UTC(t.getFullYear(),t.getMonth(),t.getDate()))/86400000);}
-  }
-  const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
-  return days.length?getDaysLeft(days):null;
-}
-function getDueDaysLeft(env){
-  if(env.nextDue&&env.dueFreq&&rollForward(env.nextDue,env.dueFreq))return[{day:null,daysLeft:getEnvDaysLeft(env)}];
-  const days=env.dueDays||(env.dueDay?[env.dueDay]:[]);
-  return days.map(day=>({day,daysLeft:calendarDaysLeft(nextMonthlyDue(day))})).sort((a,b)=>a.daysLeft-b.daysLeft);
-}
+function getEnvDaysLeft(env){const d=billDates(env,1)[0];return d?calendarDaysLeft(d):null;}
+
+function getDueDaysLeft(env){const d=billDates(env,1)[0];return d?[{day:d.getDate(),daysLeft:calendarDaysLeft(d)}]:[];}
+
 function getFrequencyLabel(freq){
   const map={monthly:'Monthly',biweekly:'Biweekly',bimonthly:'Every 2 Months',quarterly:'Every 3 Months',semiannual:'Every 6 Months',annual:'Yearly'};
   return map[freq]||'Monthly';
@@ -713,6 +704,7 @@ function saveState(){
 let S=loadState();
 window.S=S;
 window.BS=null;
+const paidThisVisit=new Map();
 window.calcState={activeIdx:null,value:'0',op:null,opValue:null};
 window.txFilter='all';
 window.txSearch='';
@@ -733,8 +725,9 @@ function recordTx(env,tx){
 }
 function unallocatedEffect(tx){return tx.source==='unallocated'?-tx.amount:0;}
 function canChangeTx(env,tx){
+  if(tx.kind==='reset'){alert('This balance reset is kept as history. Start a Budget Session to reconcile balances.');return false;}
   if((tx.epoch||0)!==(env.epoch||0)){
-    alert('This entry is from before a later Budget Session. Its balance was replaced by that session, so it is kept as history.');return false;
+    alert('This entry is from before a later Budget Session or balance reset. Its balance was reconciled, so it is kept as history.');return false;
   }
   if(!tx.kind&&(tx.desc==='Budget Session'||/^(Funded|Deposit|Returned to unallocated|Transfer to |Transfer from )/.test(tx.desc))){
     alert('This older entry has no reliable reversal details. It is kept as history to avoid changing the wrong balance.');return false;
@@ -747,13 +740,14 @@ function canChangeTx(env,tx){
 function transferPartner(env,tx){
   if(!tx.transferId)return null;
   const matches=[];
-  S.envelopes.forEach(e=>e.transactions.forEach(t=>{if(t!==tx&&t.transferId===tx.transferId)matches.push({env:e,tx:t});}));
+  allAccounts().forEach(e=>e.transactions.forEach(t=>{if(t!==tx&&t.transferId===tx.transferId)matches.push({env:e,tx:t});}));
   return matches.length===1&&matches[0].env!==env&&money(matches[0].tx.amount+tx.amount)===0?matches[0]:null;
 }
 function makeTransfer(fromId,toId,amount){
-  const from=S.envelopes.find(e=>e.id===fromId),to=S.envelopes.find(e=>e.id===toId);
+  const from=S.envelopes.find(e=>e.id===fromId),to=allAccounts().find(e=>e.id===toId);
   const amt=money(amount);
-  if(!from||!to||from===to||!validAmount(amt)){alert('Choose two different budget envelopes and a valid amount.');return false;}
+  if(!from||!to||from===to||!validAmount(amt)){alert('Choose a budget envelope as the source, a different destination, and a valid amount.');return false;}
+  if(amt>from.balance){alert('Not enough money in the source envelope.');return false;}
   const transferId=txId(),ts=Date.now();
   from.balance=money(from.balance-amt);to.balance=money(to.balance+amt);
   recordTx(from,{kind:'transfer',transferId,otherId:to.id,desc:'Transfer to '+to.name,amount:-amt,ts});
@@ -765,6 +759,7 @@ function finishMutation(){closeMB();saveState();render();if(document.getElementB
 function getStatus(env){const p=env.balance/env.target;return p>=1?'funded':p>=0.5?'ontrack':'behind';}
 
 function showTab(name,btn){
+  if(name!=="income")paidThisVisit.clear();
   // Close detail screen if open
   const detail=document.getElementById('detail-screen');
   if(detail&&detail.classList.contains('open'))closeDetail();
@@ -833,7 +828,7 @@ function doQuickSpend(){
 }
 function doQuickFund(){
   const env=S.envelopes.find(e=>e.id===Number(document.getElementById('q-env').value));
-  const amt=money(getCashValue(document.getElementById('q-amt'))),src=S.modal.src||'unallocated';
+  const amt=money(getCashValue(document.getElementById('q-amt'))),src='unallocated';
   if(!env||!validAmount(amt))return;
   if(src==='unallocated'&&amt>S.unallocated){alert('Not enough unallocated funds.');return;}
   if(src==='unallocated')S.unallocated=money(S.unallocated-amt);
@@ -1321,6 +1316,8 @@ function openResetModal(){
   document.getElementById('modal-backdrop').style.display='flex';
 }
 function doReset(){
+  if(S.modal?.type!=='delete-confirm')return;
+  BS=null;closeCalcKeyboard();closeDetail();
   const fresh=JSON.parse(JSON.stringify(DEFAULT_STATE));
   fresh.envelopes=[];
   fresh.savings=[];
@@ -1369,7 +1366,7 @@ function doTransfer(){
 }
 
 function setModalTitle(t){const el=document.getElementById('modal-title-bar');if(el)el.textContent=t;}
-function renderModal(){
+function renderModalBase(){
   const m=S.modal;const inner=document.getElementById('modal-inner');if(!m){inner.innerHTML='';return;}
   if(m.type==='paysettings'){
     setModalTitle('Pay Schedule');
@@ -1531,7 +1528,7 @@ function renderModal(){
           <button id="fund-add-btn" class="btn${dir==='add'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('add',${env.balance},${S.unallocated})">+ Add</button>
           <button id="fund-sub-btn" class="btn${dir==='sub'?' btn-primary':''}" style="flex:1;font-size:13px;font-weight:600;" onclick="setFundDir('sub',${env.balance},${S.unallocated})">− Remove</button>
         </div>
-        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})"/ onblur="cashBlur(this)">
+        <input class="form-input" id="fu-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateFundPreview(${env.balance},${S.unallocated})" onblur="cashBlur(this)">
       </div>
       ${dir==='add'?`<div class="form-group">
         <label class="form-label">Source</label>
@@ -1556,7 +1553,7 @@ function renderModal(){
       </div></div>
       <div class="savings-note">Separate savings tracker — deposits do not use budget money.</div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput=""/ onblur="cashBlur(this)"></div>
+        <input class="form-input" id="sf-a" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="" onblur="cashBlur(this)"></div>
       <div class="modal-actions">
         <button class="btn btn-primary" style="flex:1" onclick="doSavFund()">Deposit</button>
         <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1569,7 +1566,7 @@ function renderModal(){
         <div style="text-align:right"><div class="si-label">After</div><div class="si-val" id="savspend-after">${fmt(after)}</div></div>
       </div></div>
       <div class="form-group"><label class="form-label">Amount ($)</label>
-        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSavSpendPreview(${sav.balance})"/ onblur="cashBlur(this)"></div>
+        <input class="form-input" id="savspend-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" oninput="updateSavSpendPreview(${sav.balance})" onblur="cashBlur(this)"></div>
       <div class="form-group"><label class="form-label">Reason</label>
         <input class="form-input" id="savspend-desc" placeholder="e.g. Car repair"/></div>
       <div class="modal-actions">
@@ -1617,7 +1614,7 @@ function renderModal(){
     if(qtype==='income'){
       setModalTitle('Log Income');
     inner.innerHTML=`        <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" onblur="cashBlur(this)"></div>
         <div class="form-group"><label class="form-label">Label</label>
           <input class="form-input" id="q-label" placeholder="e.g. Biweekly Paycheck" value="${m.label}"/></div>
         <div class="form-group"><label class="form-label">Type</label>
@@ -1643,7 +1640,7 @@ function renderModal(){
           <div style="text-align:right"><div class="si-label">After</div><div class="si-val${after<0?' warn':''}">${fmt(after)}</div></div>
         </div></div>`:''}
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount}" oninput="S.modal.amount=this.value"/ onblur="cashBlur(this)"></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount}" oninput="S.modal.amount=this.value" onblur="cashBlur(this)"></div>
         <div class="form-group"><label class="form-label">Description</label>
           <input class="form-input" id="q-desc" placeholder="e.g. HEB" value="${m.desc}" oninput="S.modal.desc=this.value"/></div>
         <div class="modal-actions">
@@ -1670,7 +1667,7 @@ function renderModal(){
           <div style="font-size:9px;color:var(--text3);margin-top:5px;">${src==='direct'?'Skip the income log — add straight to this envelope.':'Use money already in your unallocated balance.'}</div>
         </div>
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" onblur="cashBlur(this)"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" style="flex:1" onclick="doQuickFund()">Fund</button>
           <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1687,7 +1684,7 @@ function renderModal(){
             ${allEnvs.filter(e=>e.id!==(m.envId||allEnvs[0]?.id)).map(e=>`<option value="${e.id}">${e.icon} ${e.name} (${fmt(e.balance)})</option>`).join('')}
           </select></div>
         <div class="form-group"><label class="form-label">Amount ($)</label>
-          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00"/ onblur="cashBlur(this)"></div>
+          <input class="form-input" id="q-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" onblur="cashBlur(this)"></div>
         <div class="modal-actions">
           <button class="btn btn-primary" style="flex:1" onclick="doQuickTransfer()">Transfer</button>
           <button class="btn" onclick="closeMB()">Cancel</button>
@@ -1845,7 +1842,7 @@ function renderModal(){
 
       <div class="form-group">
         <label class="form-label">Amount ($)</label>
-        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="S.modal.amount=getCashValue(this)"/ onblur="cashBlur(this)">
+        <input class="form-input" id="xfer-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="0.00" value="${m.amount||''}" oninput="S.modal.amount=getCashValue(this)" onblur="cashBlur(this)">
         ${fromAfter<0?`<div style="font-size:10px;color:var(--danger);margin-top:4px;">⚠ This puts the source envelope negative by ${fmt(Math.abs(fromAfter))}</div>`:''}
       </div>
 
@@ -1885,6 +1882,9 @@ function doEdit(){
     }
     env.target=parseFloat(m.target)||env.target;
     // Handle multiple due days
+    const newFreq=document.getElementById('edit-due-freq').value||null;
+    const newDate=document.getElementById('edit-next-due').value||null;
+    if((m.dueDaysRaw!==undefined&&m.dueDaysRaw.replace(/\s/g,'')!==(env.dueDays||(env.dueDay?[env.dueDay]:[])).join(','))||newFreq!==(env.dueFreq||null)||newDate!==(env.nextDue||null)){delete env.paidDueDates;delete env.lastPaidDue;}
     if(m.dueDaysRaw!==undefined){
       const parsed=m.dueDaysRaw.split(',').map(s=>parseInt(s.trim())).filter(n=>!isNaN(n)&&n>=1&&n<=31);
       env.dueDays=parsed.length?parsed:null;
@@ -1894,14 +1894,14 @@ function doEdit(){
     env.dueFreq=document.getElementById('edit-due-freq').value||null;
     env.nextDue=document.getElementById('edit-next-due').value||null;
   }
-  closeMB();saveState();render();
+  closeMB();saveState();render();if(document.getElementById('detail-screen').classList.contains('open'))openDetail(m.id);
 }
 function doDelete(){
   const id=S.modal.id;
   const account=allAccounts().find(e=>e.id===id);
   if(account&&account.transactions.some(t=>t.kind==='transfer'||/^Transfer (to|from) /.test(t.desc))){alert('This envelope has transfer history. Keep it so both sides remain linked.');return;}
   S.envelopes=S.envelopes.filter(e=>e.id!==id);S.savings=S.savings.filter(e=>e.id!==id);
-  closeMB();saveState();render();
+  closeDetail();closeMB();saveState();render();
 }
 function openEditIncomeModal(idx){
   const entry=S.incomeLog[idx];
@@ -1920,6 +1920,7 @@ function doEditIncome(){
   S.incomeLog[m.idx].type=m.itype;
   closeMB();saveState();render();
   renderIncomePanel();
+  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
 }
 function doDeleteIncome(){
   const m=S.modal;
@@ -1928,6 +1929,7 @@ function doDeleteIncome(){
   S.incomeLog.splice(m.idx,1);
   closeMB();saveState();render();
   renderIncomePanel();
+  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
 }
 function deleteIncome(idx){
   if((S.incomeLog[idx].unallocatedEpoch||0)!==(S.unallocatedEpoch||0)){alert('This income was reconciled in a later Budget Session and is kept as history.');return;}
@@ -1935,6 +1937,7 @@ function deleteIncome(idx){
   S.incomeLog.splice(idx,1);
   saveState();render();
   renderIncomePanel();
+  if(document.getElementById('tab-transactions').classList.contains('active'))renderTransactions();
 }
 function onSpendEnvChange(sel){
   const id=parseInt(sel.value,10);
@@ -1978,7 +1981,7 @@ function updateFundPreview(bal,unalloc){
 function doFund(){
   const m=S.modal,env=S.envelopes.find(e=>e.id===m.id),amt=money(getCashValue(document.getElementById('fu-a')));
   if(!env||!validAmount(amt))return;
-  const remove=m.dir==='sub',src=remove?'unallocated':(m.src||'unallocated');
+  const remove=m.dir==='sub',src='unallocated';
   if(remove&&amt>env.balance){alert('Not enough balance in this envelope.');return;}
   if(!remove&&src==='unallocated'&&amt>S.unallocated){alert('Not enough unallocated funds.');return;}
   const signed=remove?-amt:amt;
@@ -2077,7 +2080,7 @@ function renderDetailBody(env){
     </div>`;
     const cp=env.dueDay?getNextPayBeforeDue(env.dueDay):null;
     chipsHtml=`<div class="detail-chip-row">
-      <span class="status-badge ${status==='funded'?'badge-funded':status==='ontrack'?'badge-ontrack':'badge-behind'}">${status==='funded'?'Funded':status==='ontrack'?'On Track':'Behind'}</span>
+      <span class="status-badge ${status==='funded'?'badge-funded':status==='ontrack'?'badge-ontrack':'badge-behind'}">${status==='funded'?'Funded':status==='ontrack'?'On Track':'Needs funding'}</span>
     </div>`;
     actionsHtml=`<div class="detail-actions">
       <button class="detail-action-btn" onclick="closeDetail();openFundModal(${env.id})">
@@ -2131,6 +2134,7 @@ function renderDetailBody(env){
       <div class="detail-hero-balance${env.balance<0?' negative':''}" style="color:${balColor};">${env.balance<0?'-':''}${fmt(Math.abs(env.balance))}</div>
       <div class="detail-hero-sub">${heroSub}</div>
       ${chipsHtml}
+      ${isFixed?billScheduleControls(env):''}
     </div>
     ${progressHtml}
     ${statsHtml}
@@ -2262,7 +2266,7 @@ function renderTransactionsRows(){
         <div class="txlog-icon">${t.icon}</div>
         <div class="txlog-info"><div class="txlog-desc">${t.desc}</div><div class="txlog-env">${t.envName}</div></div>
         <div class="txlog-right"><div class="txlog-amt${t.amount>0?' pos':''}">${t.amount>0?'+':''}${fmt(t.amount)}</div></div>
-        ${t.envId!==null?`<button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>`:''}
+        ${t.envId!==null?`<button class="btn btn-sm" style="color:var(--text3);font-size:11px;flex-shrink:0;" onclick="openEditTxModal(${t.envId},${t.txIdx})">✏</button>`:`<button class="btn btn-sm" aria-label="Edit income" onclick="openEditIncomeModal(${t.txIdx})">✏</button>`}
       </div>`;
     });
   });
@@ -2492,39 +2496,74 @@ function openDayModal(iso){
   document.getElementById('modal-backdrop').style.display='flex';
 }
 
+function localDateKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function billDates(env,count=1){
+  const t=today();t.setHours(0,0,0,0);const found=[],paid=new Set(env.paidDueDates||[]);
+  const add=d=>{if(d>=t&&!paid.has(localDateKey(d)))found.push(d);};
+  if(env.nextDue&&env.dueFreq){
+    const a=new Date(env.nextDue+'T00:00:00');if(!Number.isFinite(a.getTime()))return [];
+    if(env.dueFreq==='biweekly'){
+      let d=new Date(a);while(d<t)d=addDays(d,14);
+      for(let n=0;n<400&&found.length<count;n++,d=addDays(d,14))add(new Date(d));
+    }else{
+      const step=FREQ_MONTHS[env.dueFreq]||1;
+      for(let n=0;n<2400&&found.length<count;n++){
+        const f=new Date(a.getFullYear(),a.getMonth()+n*step,1);
+        add(new Date(f.getFullYear(),f.getMonth(),Math.min(a.getDate(),new Date(f.getFullYear(),f.getMonth()+1,0).getDate())));
+      }
+    }
+  }else{
+    const days=[...new Set(env.dueDays||(env.dueDay?[env.dueDay]:[]))].filter(d=>d>=1&&d<=31).sort((a,b)=>a-b);
+    if(!days.length)return [];
+    for(let m=0;m<120&&found.length<count;m++){
+      const f=new Date(t.getFullYear(),t.getMonth()+m,1),last=new Date(f.getFullYear(),f.getMonth()+1,0).getDate();
+      for(const day of [...new Set(days.map(d=>Math.min(d,last)))])add(new Date(f.getFullYear(),f.getMonth(),day));
+    }
+  }
+  return found.sort((a,b)=>a-b).slice(0,count);
+}
+function htmlText(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function billScheduleControls(env){
+  const d=billDates(env,1)[0];
+  return `<div style="margin-top:14px;">${env.lastPaidDue?`<button class="btn btn-sm" onclick="undoPaidDue(${env.id})">Paid · Undo</button>`:d?`<button class="btn btn-sm" onclick="openPaidDueModal(${env.id},'${localDateKey(d)}')">Already paid</button>`:''}</div>`;
+}
+function openPaidDueModal(id,date){S.modal={type:'paiddue',id,date};applyPaidDue();}
+
+function applyPaidDue(){
+  if(!S.modal||S.modal.type!=='paiddue')return;
+  const m=S.modal,env=S.envelopes.find(e=>e.id===m.id);if(!env)return;
+  if(!billDates(env,40).some(d=>localDateKey(d)===m.date)){alert('That due date changed. Reopen the bill.');return;}
+  if(document.getElementById('tab-income').classList.contains('active'))paidThisVisit.set(env.id+'|'+m.date,{id:env.id,date:m.date});
+  env.paidDueDates=[...new Set([...(env.paidDueDates||[]),m.date])];env.lastPaidDue=m.date;
+  closeMB();saveState();refreshBills(env.id);
+}
+function undoPaidDue(id,date){
+  const env=S.envelopes.find(e=>e.id===id);if(!env)return;
+  const key=date||env.lastPaidDue;if(!key||!(env.paidDueDates||[]).includes(key))return;
+  env.paidDueDates=env.paidDueDates.filter(d=>d!==key);paidThisVisit.delete(id+'|'+key);
+  if(env.lastPaidDue===key){if(env.paidDueDates.length)env.lastPaidDue=env.paidDueDates[env.paidDueDates.length-1];else delete env.lastPaidDue;}
+  saveState();refreshBills(id);
+}
+
+function refreshBills(id){render();renderIncomePanel();if(document.getElementById('detail-screen').classList.contains('open'))openDetail(id);}
 function renderIncomePanel(){
-  const pays=getPaydays(8);
-  const logHtml=S.incomeLog.length?S.incomeLog.map((l,i)=>`
-    <div class="income-log-row">
-      <div><div class="il-name">${l.label}<span class="il-type ${l.type}">${l.type}</span></div><div class="il-date">${l.date}</div></div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="il-amt">+${fmt(l.amount)}</div>
-        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;color:var(--text3);" onclick="openEditIncomeModal(${i})">✏</button>
-        <button class="btn btn-sm" style="font-size:10px;padding:3px 8px;color:var(--danger);" onclick="deleteIncome(${i})">✕</button>
-      </div>
-    </div>`).join(''):`<div style="font-size:11px;color:var(--text3);padding:8px 0;">No income logged yet.</div>`;
-  document.getElementById('income-panel-full').innerHTML=`
-    <div class="income-panel">
-      <div class="income-panel-title">Log Income</div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input class="finput" id="custom-inc-amt" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" placeholder="Amount ($)" style="width:130px;"/ onblur="cashBlur(this)">
-        <input class="finput" id="custom-inc-lbl" placeholder="Label (optional)" style="flex:1;min-width:140px;"/>
-        <button class="btn btn-primary btn-sm" onclick="addIncome('other')">+ Add</button>
-      </div>
-      <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:11px;">
-        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);margin-bottom:7px;">Income Log</div>
-        ${logHtml}
-      </div>
-    </div>
-    <div class="income-panel">
-      <div class="income-panel-title">Upcoming Pay Schedule</div>
-      ${pays.map((p,i)=>`
-        <div class="income-log-row">
-          <div><div class="il-name">${p.label}<span class="il-type ${p.type}">${p.type}</span></div>
-            <div class="il-date">${fmtFull(p.date)}</div></div>
-          <div style="font-size:10px;color:${i===0?'var(--rose)':'var(--text3)'};">${i===0?'Next':'in '+daysUntil(p.date)+'d'}</div>
-        </div>`).join('')}
-    </div>`;
+  const upcoming=[],missing=[];
+  S.envelopes.filter(e=>e.type==='fixed').forEach(env=>{
+    const dates=billDates(env,40);if(!dates.length){missing.push(env);return;}
+    let reserved=Math.max(0,Number(env.balance)||0);
+    dates.filter(d=>calendarDaysLeft(d)<30).forEach(d=>{
+      const target=Math.max(0,Number(env.target)||0),setAside=Math.min(reserved,target);reserved=money(reserved-setAside);
+      upcoming.push({env,date:d,target,setAside,needed:money(target-setAside)});
+    });
+  });
+  paidThisVisit.forEach(p=>{const env=S.envelopes.find(e=>e.id===p.id);if(env&&(env.paidDueDates||[]).includes(p.date))upcoming.push({env,date:new Date(p.date+'T00:00:00'),target:env.target,setAside:0,needed:0,paid:true});});
+  upcoming.sort((a,b)=>a.date-b.date||a.env.name.localeCompare(b.env.name));
+  const needed=money(upcoming.reduce((a,b)=>a+b.needed,0));
+  document.getElementById('income-panel-full').innerHTML=`<h2 style="font-family:Nunito,sans-serif;color:var(--rose);">Upcoming</h2><div style="color:var(--text3);margin:6px 0 16px;">Next 30 days · ${fmtShort(today())} – ${fmtShort(addDays(today(),29))}</div>
+  <div class="income-panel"><div class="si-label">Still needs funding</div><div class="session-balance-val">${fmt(needed)}</div><div style="color:var(--text3);margin-top:6px;">${upcoming.filter(r=>!r.paid).length} upcoming payments · ${upcoming.filter(r=>!r.paid&&!r.needed).length} funded</div></div>
+  ${upcoming.map(r=>`<div class="income-panel"><button style="width:100%;background:none;border:none;color:var(--text);text-align:left;cursor:pointer;" onclick="openDetail(${r.env.id})"><div style="font-family:Nunito,sans-serif;font-size:17px;font-weight:800;">${htmlText(r.env.icon)} ${htmlText(r.env.name)} ›</div><div style="color:var(--text3);margin:6px 0 12px;">${fmtFull(r.date)} · ${calendarDaysLeft(r.date)===0?'Today':'In '+calendarDaysLeft(r.date)+' days'}</div><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;"><span>Target ${fmt(r.target)}</span><span style="color:${r.needed?'var(--rose-light)':'var(--success)'};">${r.paid?'✓ Paid':r.needed?'Needs '+fmt(r.needed):'✓ Funded'}</span></div><div style="color:var(--text3);margin-top:6px;">${r.paid?'Next due '+fmtFull(billDates(r.env,1)[0]):fmt(r.setAside)+' set aside'}</div></button><div style="margin-top:14px;">${r.paid?`<button class="btn btn-sm" onclick="undoPaidDue(${r.env.id},'${localDateKey(r.date)}')">Paid · Undo</button>`:`<button class="btn btn-sm" onclick="openPaidDueModal(${r.env.id},'${localDateKey(r.date)}')">Already paid</button>`}</div></div>`).join('')||'<div class="detail-empty">No bills due in the next 30 days.</div>'}
+
+  ${missing.length?`<div class="income-panel"><div class="si-label">Bills without due dates</div>${missing.map(e=>`<button class="btn btn-sm" style="margin:6px;" onclick="openEditModal(${e.id})">${htmlText(e.icon)} ${htmlText(e.name)} · Set date</button>`).join('')}</div>`:''}`;
 }
 
 function render(){
@@ -2597,6 +2636,43 @@ function render(){
     </div>`;
 
   document.getElementById('sections-container').innerHTML=html;
+  if(document.getElementById('tab-income').classList.contains('active'))renderIncomePanel();
+}
+
+function renderModal(){
+  const m=S.modal,inner=document.getElementById('modal-inner');if(!m)return renderModalBase();
+  const actions=confirm=>`<div class="modal-actions"><button class="btn btn-primary" onclick="${confirm}">Confirm</button><button class="btn" onclick="closeMB()">Cancel</button></div>`;
+  if(m.type==='reset'){
+    setModalTitle('Reset options');inner.innerHTML=`<div class="income-panel"><h3>Zero all balances</h3><p style="color:var(--text2);margin:12px 0;">Zero fixed, variable, savings, and unallocated. Keep envelopes, targets, due dates, pay settings, and history.</p><button class="btn" onclick="S.modal={type:'zero-confirm'};renderModal()">Zero all balances</button></div><div class="income-panel"><h3>Delete everything</h3><p style="color:var(--text2);margin:12px 0;">Delete all envelopes, savings goals, balances, transactions, and income history. Keep your pay schedule.</p><button class="btn btn-danger" onclick="S.modal={type:'delete-confirm'};renderModal()">Delete everything</button></div>`;return;
+  }
+  if(m.type==='zero-confirm'){
+    setModalTitle('Zero all balances?');inner.innerHTML=`<p>Every balance, including savings and unallocated, will become $0. Your envelopes and history stay. Old transactions remain as history and cannot undo this reset.</p>${actions('zeroAllBalances()')}`;return;
+  }
+  if(m.type==='delete-confirm'){
+    setModalTitle('Delete everything?');inner.innerHTML=`<p>This permanently deletes all envelopes, savings goals, balances, transactions, and income history. Your pay schedule stays. This cannot be undone.</p>${actions('doReset()')}`;return;
+  }
+  if(m.type==='paiddue'){
+    const env=S.envelopes.find(e=>e.id===m.id);if(!env)return closeMB();
+    setModalTitle('Already paid this bill?');inner.innerHTML=`<div class="sib">${htmlText(env.icon)} ${htmlText(env.name)} · ${fmtFull(new Date(m.date+'T00:00:00'))}</div><p>Remove this occurrence from upcoming bills and use the next scheduled date for funding suggestions. No balance changes and no expense is recorded. Undo will be available.</p>${actions('applyPaidDue()')}`;return;
+  }
+  if(m.type==='transfer'||(m.type==='quick'&&m.qtype==='transfer')){
+    const quick=m.type==='quick',fromId=quick?(m.envId||S.envelopes[0]?.id):m.fromId;
+    const opts=(list,sel)=>list.map(e=>`<option value="${e.id}"${e.id===sel?' selected':''}>${htmlText(e.icon)} ${htmlText(e.name)} (${fmt(e.balance)})</option>`).join('');
+    setModalTitle('Transfer funds');inner.innerHTML=`<div class="form-group"><label class="form-label">From budget envelope</label>${quick?`<select class="form-select" id="q-from">${opts(S.envelopes,fromId)}</select>`:`<div class="sib">${htmlText(S.envelopes.find(e=>e.id===fromId)?.name||'')}</div>`}</div><div class="form-group"><label class="form-label">To envelope or savings</label><select class="form-select" id="${quick?'q-to':'transfer-to'}">${opts(allAccounts().filter(e=>quick||e.id!==fromId),m.toId||allAccounts().find(e=>e.id!==fromId)?.id)}</select></div><div class="form-group"><label class="form-label">Amount ($)</label><input class="form-input" id="${quick?'q-amt':'xfer-amt'}" inputmode="decimal" placeholder="0.00" onblur="cashBlur(this)"></div><div style="color:var(--text3);font-size:13px;">Moving money to savings reduces your Budget Total.</div>${actions(quick?'doQuickTransfer()':'doTransfer()')}`;return;
+  }
+  renderModalBase();
+  if(m.type==='paysettings'){
+    setModalTitle('Settings');const b=Array.from(inner.querySelectorAll('button')).find(b=>b.textContent==='Reset to blank');if(b)b.textContent='Reset options';
+  }
+  if(m.type==='fund'||(m.type==='quick'&&m.qtype==='fund')){
+    m.src='unallocated';const b=Array.from(inner.querySelectorAll('button')).find(b=>b.textContent==='Add Directly');
+    if(b){const group=b.closest('.form-group');if(group)group.innerHTML='<div style="color:var(--text3);font-size:13px;">Funding uses unallocated money. Log new income first. Removing money returns it to unallocated.</div>';}
+  }
+}
+function zeroAllBalances(){
+  if(S.modal?.type!=='zero-confirm')return;
+  allAccounts().forEach(env=>{const previous=Number(env.balance)||0;env.epoch=(env.epoch||0)+1;env.balance=0;if(previous)recordTx(env,{kind:'reset',desc:'Balances reset to zero',amount:-previous});});
+  S.unallocatedEpoch=(S.unallocatedEpoch||0)+1;S.unallocated=0;BS=null;closeCalcKeyboard();closeDetail();finishMutation();
 }
 
 render();
