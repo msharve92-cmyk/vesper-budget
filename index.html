@@ -11,7 +11,7 @@
 <meta name="description" content="Personal envelope budgeting app"/>
 <link rel="manifest" href="vesper.webmanifest"/>
 <title>Vesper Budget</title>
-<meta name="vesper-build" content="2026-11-13-upcoming-inline-undo"/>
+<meta name="vesper-build" content="2026-11-17-envelope-type"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
 <style>
@@ -1463,6 +1463,12 @@ function renderModalBase(){
           </div>
         </div>
       </div>
+      ${!isSav?`<div class="form-group"><label class="form-label" for="edit-envelope-type">Envelope type</label>
+        <select class="form-select" id="edit-envelope-type" onchange="S.modal.etype=this.value">
+          <option value="fixed" ${(m.etype||env.type)==='fixed'?'selected':''}>Fixed Bill</option>
+          <option value="variable" ${(m.etype||env.type)==='variable'?'selected':''}>Variable</option>
+        </select>
+      </div>`:''}
       ${isSav?`<div class="form-group"><label class="form-label">Current Balance ($)</label>
         <input class="form-input" type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" value="${m.balance}" oninput="S.modal.balance=parseFloat(this.value)||0" onblur="cashBlur(this)"/>
         <div style="font-size:9px;color:var(--text3);margin-top:3px;">Adjust to match your real savings account.</div></div>`:''}
@@ -1868,6 +1874,11 @@ function doEdit(){
   const m=S.modal;const all=[...S.envelopes,...S.savings];const env=all.find(e=>e.id===m.id);
   const isSav=S.savings.some(s=>s.id===m.id);
   if(env){
+    if(!isSav){
+      const type=document.getElementById('edit-envelope-type').value;
+      if(type!=='fixed'&&type!=='variable')return;
+      env.type=type;
+    }
     if(m.name&&m.name.trim())env.name=m.name.trim();
     if(m.icon)env.icon=m.icon;
     // Only savings envelopes can have balance manually adjusted
